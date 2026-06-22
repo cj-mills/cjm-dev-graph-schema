@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cjm-dev-graph-schema"
+dynamic = ["version"]
+description = "Development/decision-provenance schema for context graphs: Decision, Fact-slot/Assertion, Evidence, Thread, Session, Procedure, and Entity node kinds with deterministic identity and overlay/reasoning edges — the dev-domain sibling to cjm-transcript-graph-schema for graphing a project's own evolution."
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "Apache-2.0"}
+authors = [{name = "Christian J. Mills", email = "9126128+cj-mills@users.noreply.github.com"}]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+]
+dependencies = ['cjm-context-graph-layer>=0.0.7', 'cjm-context-graph-primitives>=0.0.12']
+
+[project.urls]
+Repository = "https://github.com/cj-mills/cjm-dev-graph-schema"
+
+[tool.setuptools.dynamic]
+version = {attr = "cjm_dev_graph_schema.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["cjm_dev_graph_schema*"]
