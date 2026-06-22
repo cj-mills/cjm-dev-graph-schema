@@ -14,8 +14,56 @@ from cjm_context_graph_layer.grammar import make_edge
 from cjm_context_graph_primitives.locators import FileRef
 from cjm_context_graph_primitives.provenance import SourceRef
 
-from .identity import note_node_id
+from .identity import entity_node_id, note_node_id
 from .vocab import DevNodeKinds, DevRelations
+
+
+@dataclass
+class EntityNode:
+    """A first-class subject: a repo/lib, stage, capability, person, or term.
+
+    Entities are the mechanical half of slot identity (deterministic id from
+    (sub-kind, stable key)) — the durable subjects that Fact-slots hang off and
+    that notes/decisions point at via `ABOUT`/`DEPENDS_ON`. Asserted-root: an
+    entity is declared knowledge, not ingested content. `key` is the stable
+    identity input (e.g. the repo name); `name` is display."""
+    kind: str                                    # Entity sub-kind ("repo" | "stage" | "capability" | "person" | "term")
+    key: str                                     # Stable key within the sub-kind (the identity input; e.g. the repo name)
+    name: str                                    # Display name
+    properties: Dict[str, Any] = field(default_factory=dict)  # Extra entity properties (e.g. repo path, tier)
+
+    @property
+    def id(self) -> str:  # Deterministic node id
+        """Deterministic node id (from (sub-kind, key))."""
+        return entity_node_id(self.kind, self.key)
+
+    def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
+        """Build the Entity node wire dict (root_kind=asserted; no provenance file)."""
+        props: Dict[str, Any] = {
+            "entity_kind": self.kind,
+            "key": self.key,
+            "name": self.name,
+            "root_kind": "asserted",
+        }
+        props.update(self.properties)
+        return {
+            "id": self.id,
+            "label": DevNodeKinds.ENTITY,
+            "properties": props,
+            "sources": [],
+        }
+
+    def depends_on_edges(
+        self,
+        dep_keys: List[str],  # Stable keys of entities of the SAME sub-kind this one depends on
+    ) -> List[Dict[str, Any]]:  # DEPENDS_ON edge wire dicts
+        """One `DEPENDS_ON` edge per dependency (same sub-kind), by deterministic id.
+
+        A dependency on an entity not yet emitted still resolves to a stable id
+        (the store drops the edge until that entity exists — same dangling
+        semantics as note REFERENCES)."""
+        return [make_edge(self.id, entity_node_id(self.kind, dk), DevRelations.DEPENDS_ON)
+                for dk in dep_keys]
 
 
 @dataclass
