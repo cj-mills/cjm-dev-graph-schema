@@ -38,3 +38,43 @@ def entity_node_id(
     half, the predicate vocabulary, is curated). Reserved here; used as the fine
     tier introduces Fact-slots whose subject is an Entity."""
     return derive_node_id("entity", kind, key)
+
+
+def factslot_node_id(
+    subject_id: str,       # The subject node's id (an Entity, usually)
+    predicate_slug: str,   # The curated predicate slug
+) -> str:  # Deterministic Fact-slot node id
+    """Fact-slot identity = (subject, predicate).
+
+    THE slot-identity unlock made mechanical: the same subject + predicate always
+    derives the same slot id, so independent assertions about one fact converge on
+    one slot (rather than splintering into parallel free-floating questions)."""
+    return derive_node_id("factslot", subject_id, predicate_slug)
+
+
+def assertion_node_id(
+    slot_id: str,          # The Fact-slot this value is claimed for
+    canonical_value: str,  # The value's canonical form (see `predicates.canonical_value`)
+    actor: str,            # Who claimed it (the assertion is identified by WHAT is claimed, by whom)
+) -> str:  # Deterministic Assertion node id
+    """Assertion identity = (slot, canonical value, actor).
+
+    An assertion is identified by WHAT is claimed, NOT by its why/when/evidence —
+    so re-asserting the same value (same actor) is an idempotent no-op, while a
+    DIFFERENT value mints a new node (the potential conflict). The when
+    (`asserted_at`) and evidence (edges) are content, never identity."""
+    return derive_node_id("assertion", slot_id, canonical_value, actor)
+
+
+def decision_node_id(
+    statement_key: str,  # The decision's canonical statement (its stable key)
+) -> str:  # Deterministic Decision node id
+    """Decision identity = its canonical statement (idempotent re-records)."""
+    return derive_node_id("decision", statement_key)
+
+
+def session_node_id(
+    key: str,  # Stable session key (e.g. the session timestamp/id)
+) -> str:  # Deterministic Session node id
+    """Session identity = its stable key (so DECIDED_IN/PRODUCED_IN converge)."""
+    return derive_node_id("session", key)

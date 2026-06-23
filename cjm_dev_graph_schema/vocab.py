@@ -46,7 +46,8 @@ class DevRelations:
     `PRODUCED` — are re-exposed via `OverlayRelations` for convenience but remain
     owned by the layer. `REFERENCES` (the `[[wiki-link]]`) lands first."""
     REFERENCES = "REFERENCES"      # Soft cross-reference (the [[wiki-link]]); coarse tier
-    ABOUT = "ABOUT"                # Node -> the repo / stage / Thread it concerns
+    ABOUT = "ABOUT"                # Node -> the repo / stage / Thread it concerns (incl. Fact-slot -> its subject)
+    ON_SLOT = "ON_SLOT"            # Assertion -> the Fact-slot it claims a value for (fine tier)
     DECIDED_IN = "DECIDED_IN"      # Decision -> the Session it was decided in
     PRODUCED_IN = "PRODUCED_IN"    # Node -> the Session that produced it
     EVIDENCED_BY = "EVIDENCED_BY"  # Claim -> supporting Evidence
@@ -63,8 +64,8 @@ class DevRelations:
     @classmethod
     def all(cls) -> list:  # All dev-domain relations (excluding the layer-owned spine relations)
         """All dev-domain edge relations, including the reused overlay relations."""
-        return [cls.REFERENCES, cls.ABOUT, cls.DECIDED_IN, cls.PRODUCED_IN, cls.EVIDENCED_BY,
-                cls.DEPENDS_ON, cls.LANDS_AT, cls.CONTRADICTS, cls.SUPPORTED_BY,
+        return [cls.REFERENCES, cls.ABOUT, cls.ON_SLOT, cls.DECIDED_IN, cls.PRODUCED_IN,
+                cls.EVIDENCED_BY, cls.DEPENDS_ON, cls.LANDS_AT, cls.CONTRADICTS, cls.SUPPORTED_BY,
                 cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 

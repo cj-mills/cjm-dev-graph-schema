@@ -35,18 +35,38 @@ Depends on
 - **`vocab`** — the reserved node-kind and edge-relation vocabulary for the
   dev domain (Decision, Fact-slot/Assertion, Evidence, Thread, Session,
   Procedure, Entity, and the coarse `Note`; edges `REFERENCES`, `ABOUT`,
-  `DECIDED_IN`, `SUPPORTED_BY`, `CONTRADICTS`, …). The full vocabulary is
-  reserved up front; the coarse tier is implemented first and refined into the
-  fine tier as the arc progresses.
+  `ON_SLOT`, `DECIDED_IN`, `SUPPORTED_BY`, `CONTRADICTS`, …).
 - **`identity`** — deterministic node-id helpers built on the layer's
   `derive_node_id` (a node's id derives from what makes it *the same* node
-  across re-derivation, never from its correctable content).
+  across re-derivation, never from its correctable content). Fine-tier ids:
+  `factslot_node_id(subject, predicate)`, `assertion_node_id(slot, canonical
+  value, actor)`, `decision_node_id`, `session_node_id`.
 - **`nodes`** — typed node dataclasses with `.id` / `.to_graph_node()` wire-dict
-  mapping, mirroring the transcript schema's shape. `NoteNode` (the coarse
-  document node) lands first.
+  mapping. Coarse: `NoteNode`, `EntityNode`. Fine: `FactSlotNode` (a
+  `(subject, predicate)` slot), `AssertionNode` (one value claimed for a slot —
+  identified by *what is claimed*: `(slot, canonical value, actor)`),
+  `DecisionNode` (+ `SUPPORTED_BY` premise edges), `SessionNode`.
+- **`predicates`** — the typed-predicate registry + value-space metadata
+  (type / volatility / ordering) that makes contradiction *decidable*:
+  `rename-disposition` (unordered enum → genuine disagreement is a contradiction)
+  and `version` (semver, ordered → a bump auto-supersedes, never a contradiction).
+  Pure functions: `canonical_value`, `ordering_supersedes`, `values_conflict`,
+  `active_contradiction`, `soft_conflict`.
+- **`aliases`** — rename-stable subject resolution (A+aliases): an entity's `key`
+  is a durable conceptual slug, its current name + prior names resolve to it.
+  `build_alias_index` / `resolve_subject_id`.
+
+Identity model: a **Fact-slot** is `(subject, predicate)`; an **Assertion** is
+identified by *what* it claims (so re-claiming a value is idempotent and a
+different value is a new node = the potential conflict). The *why* is a separate
+premise node (`SUPPORTED_BY`), the *when* is timestamps (content, not identity),
+the *evidence* is `EVIDENCED_BY` edges. Effective values resolve via the layer's
+`SUPERSEDES` edges (`resolve_active`).
 
 ## Status
 
-Early — built incrementally alongside the self-hosting graph arc. The coarse
-tier (`Note` + `REFERENCES`) lands first; the fine tier (Decisions, layered
-Assertions, oracle-backed Fact-slots, contradiction detection) follows.
+The fine tier is built: typed predicates + value-space, Fact-slots, layered
+Assertions, Decisions, and rename-stable entity identity — the schema half of the
+self-hosting graph arc's first-slice-complete cut. The write surface,
+contradiction query, version oracle, and worklist that consume it live in
+[`cjm-context-graph-projection`](https://github.com/cj-mills/cjm-context-graph-projection).
