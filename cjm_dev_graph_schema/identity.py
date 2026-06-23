@@ -78,3 +78,28 @@ def session_node_id(
 ) -> str:  # Deterministic Session node id
     """Session identity = its stable key (so DECIDED_IN/PRODUCED_IN converge)."""
     return derive_node_id("session", key)
+
+
+def code_module_node_id(
+    repo_key: str,     # The repo's durable conceptual slug (the rename-stable Entity key; the federation anchor)
+    module_path: str,  # The module's import-style or repo-relative path (e.g. "cjm_dev_graph_schema/nodes.py")
+) -> str:  # Deterministic CodeModule node id
+    """Code-module identity = (repo_key, module_path).
+
+    Keyed on the repo's DURABLE conceptual slug (not its directory name) + the
+    module's repo-relative path, so the id is reproducible in ANY graph that
+    decomposes the repo — the cross-graph/federation anchor that lets a different
+    project's graph reference this module by its stable id."""
+    return derive_node_id("code_module", repo_key, module_path)
+
+
+def code_symbol_node_id(
+    module_id: str,  # The enclosing CodeModule node id (already repo+path-stable)
+    qualname: str,   # The symbol's qualified name within the module (e.g. "EntityNode.to_graph_node")
+) -> str:  # Deterministic CodeSymbol node id
+    """Code-symbol identity = (enclosing module, qualified name).
+
+    Derives off the module id (itself repo+path-stable), so a symbol has the same
+    id across re-decomposition and across graphs. Qualname carries nesting
+    (`Class.method`), so a method and a same-named free function never collide."""
+    return derive_node_id("code_symbol", module_id, qualname)

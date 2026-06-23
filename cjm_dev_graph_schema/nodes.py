@@ -23,8 +23,9 @@ from cjm_context_graph_layer.grammar import make_edge
 from cjm_context_graph_primitives.locators import FileRef
 from cjm_context_graph_primitives.provenance import SourceRef
 
-from .identity import (assertion_node_id, decision_node_id, entity_node_id,
-                       factslot_node_id, note_node_id, session_node_id)
+from .identity import (assertion_node_id, code_module_node_id, code_symbol_node_id,
+                       decision_node_id, entity_node_id, factslot_node_id,
+                       note_node_id, session_node_id)
 from .predicates import canonical_value, is_typed
 from .vocab import DevNodeKinds, DevRelations
 
@@ -323,3 +324,146 @@ class SessionNode:
         if self.title:
             props["title"] = self.title
         return {"id": self.id, "label": DevNodeKinds.SESSION, "properties": props, "sources": []}
+
+
+@dataclass
+class CodeModuleNode:
+    """The code source-type's coarse node: one decomposed `.py` module.
+
+    Parallel to `NoteNode` (the markdown source-type) — same `FileRef`+content-hash
+    `SourceRef` provenance, so code-module and note nodes CO-RESIDE on one graph (the
+    seam a future nbdev compositor weaves from a notebook's interleaved code+markdown
+    cells). Identity is (repo_key, module_path) keyed on the repo's DURABLE conceptual
+    slug (NOT its directory name), so the id is reproducible in any graph that
+    decomposes the repo — the cross-graph/federation anchor that lets a different
+    project's graph reference this module by its stable id. A module is also a
+    first-class subject: a Fact-slot can hang off it (e.g. a module-level known-issue)."""
+    repo_key: str                                # Repo's durable conceptual slug (the rename-stable Entity key + federation anchor); identity input
+    module_path: str                             # Repo-relative module path (e.g. "cjm_dev_graph_schema/nodes.py"); identity input
+    path: str                                    # File path (provenance locator; may move, identity is (repo_key, module_path))
+    content_hash: str                            # Content hash over the file bytes ("algo:hexdigest")
+    import_name: str = ""                         # Dotted import name (e.g. "cjm_dev_graph_schema.nodes"); display + import resolution, not identity
+    docstring: str = ""                          # Module docstring first line (the relevance/description hook)
+    imports: List[str] = field(default_factory=list)  # Dotted module names imported (raw; resolved to IMPORTS edges via a corpus map)
+    properties: Dict[str, Any] = field(default_factory=dict)  # Extra module properties
+
+    @property
+    def id(self) -> str:  # Deterministic node id
+        """Deterministic node id (from (repo_key, module_path))."""
+        return code_module_node_id(self.repo_key, self.module_path)
+
+    def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
+        """Build the CodeModule node wire dict (root_kind=asserted; FileRef provenance)."""
+        props: Dict[str, Any] = {
+            "name": self.import_name or self.module_path,
+            "title": self.module_path,
+            "repo_key": self.repo_key,
+            "module_path": self.module_path,
+            "path": self.path,
+            "root_kind": "asserted",
+        }
+        if self.import_name:
+            props["import_name"] = self.import_name
+        if self.docstring:
+            props["description"] = self.docstring
+        if self.imports:
+            props["imports"] = list(self.imports)
+        props.update(self.properties)
+        return {
+            "id": self.id,
+            "label": DevNodeKinds.CODE_MODULE,
+            "properties": props,
+            "sources": [SourceRef(locator=FileRef(path=self.path),
+                                  content_hash=self.content_hash).to_dict()],
+        }
+
+    def about_edge(self) -> Dict[str, Any]:  # ABOUT edge (module -> repo Entity)
+        """The `ABOUT` edge tying the module to its repo Entity (the cross-link into
+        the decision/note neighborhood). Targets `entity_node_id("repo", repo_key)`;
+        dangles harmlessly until that repo Entity lands (same as note REFERENCES)."""
+        return make_edge(self.id, entity_node_id("repo", self.repo_key), DevRelations.ABOUT)
+
+    def defines_edges(
+        self,
+        symbol_ids: List[str],  # ids of the top-level CodeSymbols this module declares
+    ) -> List[Dict[str, Any]]:  # DEFINES edge wire dicts
+        """One `DEFINES` edge per top-level symbol the module declares."""
+        return [make_edge(self.id, sid, DevRelations.DEFINES) for sid in symbol_ids]
+
+    def import_edges(
+        self,
+        import_map: Dict[str, str],  # {dotted-import-name: target CodeModule id} for intra-corpus modules
+    ) -> List[Dict[str, Any]]:  # IMPORTS edge wire dicts
+        """One `IMPORTS` edge per import that resolves to a module in the corpus map.
+
+        External/stdlib imports (absent from the map) are skipped rather than minting
+        phantom targets — the map is the corpus the driver chose to decompose."""
+        return [make_edge(self.id, import_map[imp], DevRelations.IMPORTS)
+                for imp in self.imports if imp in import_map]
+
+
+@dataclass
+class CodeSymbolNode:
+    """A definition within a module: a function, class, or method.
+
+    A first-class addressable subject (deterministic id) — so a Fact-slot can hang
+    off a symbol (a `known-issue`/perf-debt assertion), a Decision can point at the
+    symbol that implements it, and a different project's graph can reference it by
+    its reproducible id. Structural home is its module (module DEFINES symbol);
+    nesting is another DEFINES (class DEFINES method)."""
+    module_id: str                               # Enclosing CodeModule node id; identity input (with qualname)
+    qualname: str                                # Qualified name within the module (e.g. "EntityNode.to_graph_node"); identity input
+    symbol_kind: str                             # "function" | "class" | "method"
+    path: str                                    # File path (provenance locator)
+    content_hash: str = ""                        # Content hash over the file bytes (the symbol shares its module's source file)
+    lineno: Optional[int] = None                 # 1-based start line (provenance; content, not identity)
+    docstring: str = ""                          # Symbol docstring first line (the relevance/description hook)
+    calls: List[str] = field(default_factory=list)  # Names this symbol references/calls (raw; resolved to CALLS edges via a corpus map)
+    properties: Dict[str, Any] = field(default_factory=dict)  # Extra symbol properties
+
+    @property
+    def id(self) -> str:  # Deterministic node id
+        """Deterministic node id (from (module, qualname))."""
+        return code_symbol_node_id(self.module_id, self.qualname)
+
+    def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
+        """Build the CodeSymbol node wire dict (root_kind=asserted)."""
+        props: Dict[str, Any] = {
+            "name": self.qualname,
+            "title": self.qualname,
+            "module_id": self.module_id,
+            "qualname": self.qualname,
+            "symbol_kind": self.symbol_kind,
+            "path": self.path,
+            "root_kind": "asserted",
+        }
+        if self.lineno is not None:
+            props["lineno"] = self.lineno
+        if self.docstring:
+            props["description"] = self.docstring
+        if self.calls:
+            props["calls"] = list(self.calls)
+        props.update(self.properties)
+        sources = ([SourceRef(locator=FileRef(path=self.path),
+                              content_hash=self.content_hash).to_dict()]
+                   if self.content_hash else [])
+        return {"id": self.id, "label": DevNodeKinds.CODE_SYMBOL, "properties": props,
+                "sources": sources}
+
+    def defines_edges(
+        self,
+        child_ids: List[str],  # ids of nested CodeSymbols (e.g. a class's methods)
+    ) -> List[Dict[str, Any]]:  # DEFINES edge wire dicts
+        """One `DEFINES` edge per nested symbol (class -> its methods)."""
+        return [make_edge(self.id, cid, DevRelations.DEFINES) for cid in child_ids]
+
+    def calls_edges(
+        self,
+        call_map: Dict[str, str],  # {called-name: target CodeSymbol id} for intra-corpus symbols
+    ) -> List[Dict[str, Any]]:  # CALLS edge wire dicts
+        """One `CALLS` edge per call that resolves to a symbol in the corpus map.
+
+        Unresolved names (external calls, builtins, locals) are skipped — call
+        resolution is best-effort name matching, not a full scope analysis."""
+        return [make_edge(self.id, call_map[c], DevRelations.CALLS)
+                for c in self.calls if c in call_map]

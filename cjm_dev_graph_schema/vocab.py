@@ -31,12 +31,15 @@ class DevNodeKinds:
     SESSION = "Session"      # A working session (decisions/facts are PRODUCED_IN / DECIDED_IN one)
     PROCEDURE = "Procedure"  # A codified script + methodology; can be an oracle slot's value-source
     ENTITY = "Entity"        # A repo/lib, stage, capability, person, or abstract term (incl. class-subjects)
+    CODE_MODULE = "CodeModule"  # A decomposed source-code module (one per .py file); a source-type node
+    CODE_SYMBOL = "CodeSymbol"  # A definition within a module (function/class/method); a first-class addressable subject
 
     @classmethod
     def all(cls) -> list:  # All dev-schema node labels
         """All dev-schema node labels."""
         return [cls.NOTE, cls.DECISION, cls.FACT_SLOT, cls.ASSERTION, cls.EVIDENCE,
-                cls.THREAD, cls.SESSION, cls.PROCEDURE, cls.ENTITY]
+                cls.THREAD, cls.SESSION, cls.PROCEDURE, cls.ENTITY,
+                cls.CODE_MODULE, cls.CODE_SYMBOL]
 
 
 class DevRelations:
@@ -55,6 +58,9 @@ class DevRelations:
     LANDS_AT = "LANDS_AT"          # Thread -> the Stage it lands at
     CONTRADICTS = "CONTRADICTS"    # Assertion <-> conflicting Assertion (the dedup substrate)
     SUPPORTED_BY = "SUPPORTED_BY"  # Decision -> premise Assertion (the reasoning substrate)
+    DEFINES = "DEFINES"            # CodeModule -> CodeSymbol it declares (and CodeSymbol -> nested CodeSymbol)
+    IMPORTS = "IMPORTS"            # CodeModule -> a module it imports (intra/inter-repo; dangles until that module lands)
+    CALLS = "CALLS"                # CodeSymbol -> a CodeSymbol it references/calls
 
     # Overlay relations this domain reuses (owned by the layer; re-exposed for convenience).
     SUPERSEDES = OverlayRelations.SUPERSEDES
@@ -66,6 +72,7 @@ class DevRelations:
         """All dev-domain edge relations, including the reused overlay relations."""
         return [cls.REFERENCES, cls.ABOUT, cls.ON_SLOT, cls.DECIDED_IN, cls.PRODUCED_IN,
                 cls.EVIDENCED_BY, cls.DEPENDS_ON, cls.LANDS_AT, cls.CONTRADICTS, cls.SUPPORTED_BY,
+                cls.DEFINES, cls.IMPORTS, cls.CALLS,
                 cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 
