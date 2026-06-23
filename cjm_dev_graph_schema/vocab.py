@@ -31,15 +31,16 @@ class DevNodeKinds:
     SESSION = "Session"      # A working session (decisions/facts are PRODUCED_IN / DECIDED_IN one)
     PROCEDURE = "Procedure"  # A codified script + methodology; can be an oracle slot's value-source
     ENTITY = "Entity"        # A repo/lib, stage, capability, person, or abstract term (incl. class-subjects)
-    CODE_MODULE = "CodeModule"  # A decomposed source-code module (one per .py file); a source-type node
+    CODE_MODULE = "CodeModule"  # A decomposed source-code module (one per .py file / notebook); a source-type node
     CODE_SYMBOL = "CodeSymbol"  # A definition within a module (function/class/method); a first-class addressable subject
+    CELL = "Cell"               # One verbatim notebook cell (the lossless source substrate of a notebook CodeModule)
 
     @classmethod
     def all(cls) -> list:  # All dev-schema node labels
         """All dev-schema node labels."""
         return [cls.NOTE, cls.DECISION, cls.FACT_SLOT, cls.ASSERTION, cls.EVIDENCE,
                 cls.THREAD, cls.SESSION, cls.PROCEDURE, cls.ENTITY,
-                cls.CODE_MODULE, cls.CODE_SYMBOL]
+                cls.CODE_MODULE, cls.CODE_SYMBOL, cls.CELL]
 
 
 class DevRelations:
@@ -61,6 +62,8 @@ class DevRelations:
     DEFINES = "DEFINES"            # CodeModule -> CodeSymbol it declares (and CodeSymbol -> nested CodeSymbol)
     IMPORTS = "IMPORTS"            # CodeModule -> a module it imports (intra/inter-repo; dangles until that module lands)
     CALLS = "CALLS"                # CodeSymbol -> a CodeSymbol it references/calls
+    CONTAINS = "CONTAINS"          # Notebook CodeModule -> a verbatim Cell it is composed of (the lossless source substrate)
+    DOCUMENTS = "DOCUMENTS"        # A markdown Cell -> the CodeSymbol(s) it precedes/documents (notebook interleaving)
 
     # Overlay relations this domain reuses (owned by the layer; re-exposed for convenience).
     SUPERSEDES = OverlayRelations.SUPERSEDES
@@ -72,7 +75,7 @@ class DevRelations:
         """All dev-domain edge relations, including the reused overlay relations."""
         return [cls.REFERENCES, cls.ABOUT, cls.ON_SLOT, cls.DECIDED_IN, cls.PRODUCED_IN,
                 cls.EVIDENCED_BY, cls.DEPENDS_ON, cls.LANDS_AT, cls.CONTRADICTS, cls.SUPPORTED_BY,
-                cls.DEFINES, cls.IMPORTS, cls.CALLS,
+                cls.DEFINES, cls.IMPORTS, cls.CALLS, cls.CONTAINS, cls.DOCUMENTS,
                 cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 

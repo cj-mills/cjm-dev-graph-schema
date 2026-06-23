@@ -103,3 +103,15 @@ def code_symbol_node_id(
     id across re-decomposition and across graphs. Qualname carries nesting
     (`Class.method`), so a method and a same-named free function never collide."""
     return derive_node_id("code_symbol", module_id, qualname)
+
+
+def cell_node_id(
+    module_id: str,  # The enclosing notebook CodeModule node id
+    cell_key: str,   # Stable cell key: the nbformat cell `id` when present, else the positional index
+) -> str:  # Deterministic Cell node id
+    """Cell identity = (notebook module, stable cell key).
+
+    Prefer the nbformat cell `id` (stable across reorder/insert, nbformat >= 4.5) as
+    the key; fall back to the positional index when absent. Derives off the notebook
+    module id so a cell belongs to exactly one notebook."""
+    return derive_node_id("cell", module_id, cell_key)

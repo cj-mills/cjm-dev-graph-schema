@@ -19,13 +19,13 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from cjm_context_graph_layer.grammar import make_edge
+from cjm_context_graph_layer.grammar import SpineRelations, make_edge
 from cjm_context_graph_primitives.locators import FileRef
 from cjm_context_graph_primitives.provenance import SourceRef
 
-from .identity import (assertion_node_id, code_module_node_id, code_symbol_node_id,
-                       decision_node_id, entity_node_id, factslot_node_id,
-                       note_node_id, session_node_id)
+from .identity import (assertion_node_id, cell_node_id, code_module_node_id,
+                       code_symbol_node_id, decision_node_id, entity_node_id,
+                       factslot_node_id, note_node_id, session_node_id)
 from .predicates import canonical_value, is_typed
 from .vocab import DevNodeKinds, DevRelations
 
@@ -467,3 +467,82 @@ class CodeSymbolNode:
         resolution is best-effort name matching, not a full scope analysis."""
         return [make_edge(self.id, call_map[c], DevRelations.CALLS)
                 for c in self.calls if c in call_map]
+
+
+@dataclass
+class CellNode:
+    """One VERBATIM notebook cell — the lossless source substrate of a notebook module.
+
+    A notebook is a `CodeModule` whose authored source is an ORDERED sequence of cells.
+    Storing each cell verbatim + content-hashed is the round-trip / source-of-truth-B
+    substrate (a notebook is itself a projection composing markdown + code nodes, so the
+    cells must regenerate it faithfully). Code cells additionally get a `CodeSymbol`
+    overlay (the module DEFINES them, each tagged with its `cell_key`); markdown cells
+    carry their prose inline (title/description) and DOCUMENTS the symbols they precede.
+    Identity = (notebook module, stable cell key) — the nbformat cell `id` when present,
+    else the positional index. Outputs are intentionally NOT stored (derived, not source)."""
+    module_id: str                               # The enclosing notebook CodeModule id; identity input
+    cell_key: str                                # Stable cell key (nbformat `id`, else str(index)); identity input
+    cell_type: str                               # "code" | "markdown" | "raw"
+    source: str                                  # The cell's VERBATIM source text (the lossless store)
+    content_hash: str                            # Content hash over the cell source
+    index: Optional[int] = None                  # Positional index in the notebook (content/order, not identity)
+    path: str = ""                               # Notebook file path (provenance locator)
+    directives: List[str] = field(default_factory=list)  # nbdev `#|` directives on the cell (e.g. "export", "hide")
+    title: str = ""                              # Markdown cells: first heading/line (relevance/title hook)
+    description: str = ""                         # Markdown cells: a prose snippet (relevance hook)
+
+    @property
+    def id(self) -> str:  # Deterministic node id
+        """Deterministic node id (from (notebook module, cell key))."""
+        return cell_node_id(self.module_id, self.cell_key)
+
+    def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
+        """Build the Cell node wire dict (root_kind=asserted; verbatim source + provenance)."""
+        props: Dict[str, Any] = {
+            "name": self.title or f"{self.cell_type} cell {self.index}",
+            "cell_type": self.cell_type,
+            "cell_key": self.cell_key,
+            "module_id": self.module_id,
+            "source": self.source,
+            "path": self.path,
+            "root_kind": "asserted",
+        }
+        if self.index is not None:
+            props["index"] = self.index
+        if self.directives:
+            props["directives"] = list(self.directives)
+        if self.title:
+            props["title"] = self.title
+        if self.description:
+            props["description"] = self.description
+        sources = ([SourceRef(locator=FileRef(path=self.path),
+                              content_hash=self.content_hash).to_dict()]
+                   if self.content_hash and self.path else [])
+        return {"id": self.id, "label": DevNodeKinds.CELL, "properties": props, "sources": sources}
+
+    def contains_edge(self) -> Dict[str, Any]:  # CONTAINS edge (notebook module -> this cell)
+        """The `CONTAINS` edge from the notebook module to this cell (the substrate link)."""
+        return make_edge(self.module_id, self.id, DevRelations.CONTAINS)
+
+    def next_edge(
+        self,
+        next_cell_id: str,  # The id of the cell that follows this one
+    ) -> Dict[str, Any]:  # NEXT edge wire dict (cell ordering; the layer's spine relation)
+        """A `NEXT` edge to the following cell (cells are a linear spine, like a transcript)."""
+        return make_edge(self.id, next_cell_id, SpineRelations.NEXT)
+
+    def documents_edges(
+        self,
+        symbol_ids: List[str],  # CodeSymbol ids this markdown cell precedes/documents
+    ) -> List[Dict[str, Any]]:  # DOCUMENTS edge wire dicts
+        """One `DOCUMENTS` edge per symbol this (markdown) cell precedes — the interleaving
+        nbdev only has as proximity, made queryable."""
+        return [make_edge(self.id, sid, DevRelations.DOCUMENTS) for sid in symbol_ids]
+
+    def reference_edges(
+        self,
+        note_slugs: List[str],  # `[[wiki-link]]` slugs found in a markdown cell's prose
+    ) -> List[Dict[str, Any]]:  # REFERENCES edge wire dicts (cell -> note)
+        """One `REFERENCES` edge per `[[wiki-link]]` in a markdown cell (cell -> note id)."""
+        return [make_edge(self.id, note_node_id(s), DevRelations.REFERENCES) for s in note_slugs]

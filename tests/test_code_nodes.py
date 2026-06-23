@@ -5,9 +5,9 @@ The code nodes (`CodeModuleNode`/`CodeSymbolNode`) co-reside with the markdown
 addressable subjects with rename-/cross-graph-stable ids.
 """
 
-from cjm_dev_graph_schema.identity import (code_module_node_id, code_symbol_node_id,
-                                           entity_node_id)
-from cjm_dev_graph_schema.nodes import CodeModuleNode, CodeSymbolNode
+from cjm_dev_graph_schema.identity import (cell_node_id, code_module_node_id,
+                                           code_symbol_node_id, entity_node_id)
+from cjm_dev_graph_schema.nodes import CellNode, CodeModuleNode, CodeSymbolNode
 from cjm_dev_graph_schema.vocab import DevNodeKinds, DevRelations
 
 
@@ -111,3 +111,48 @@ def test_nested_defines():
     assert len(edges) == 1
     assert edges[0]["source_id"] == cls.id and edges[0]["target_id"] == method.id
     assert edges[0]["relation_type"] == DevRelations.DEFINES
+
+
+# --- Cell nodes (notebook = CodeModule + verbatim cell substrate) ---
+
+def _nb_mod():
+    return CodeModuleNode(repo_key="cjm-foo", module_path="cjm_foo/core.py",
+                          path="/abs/nbs/00_core.ipynb", content_hash="sha256:nb")
+
+
+def test_cell_identity_prefers_nbformat_id_else_index():
+    m = _nb_mod()
+    c = CellNode(module_id=m.id, cell_key="abc123", cell_type="code", source="x=1\n",
+                 content_hash="sha256:c", index=0)
+    assert c.id == cell_node_id(m.id, "abc123")
+    # the nbformat id is identity; the positional index is not.
+    moved = CellNode(m.id, "abc123", "code", "x=1\n", "sha256:c", index=5)
+    assert moved.id == c.id
+
+
+def test_cell_wire_is_verbatim_and_typed():
+    m = _nb_mod()
+    c = CellNode(module_id=m.id, cell_key="0", cell_type="code", source="def f():\n    return 1\n",
+                 content_hash="sha256:c", index=0, path="/abs/nbs/00_core.ipynb",
+                 directives=["export"])
+    node = c.to_graph_node()
+    assert node["label"] == DevNodeKinds.CELL
+    assert node["properties"]["source"] == "def f():\n    return 1\n"  # VERBATIM, lossless
+    assert node["properties"]["cell_type"] == "code"
+    assert node["properties"]["directives"] == ["export"]
+    assert len(node["sources"]) == 1  # FileRef + content-hash provenance to the .ipynb
+
+
+def test_cell_contains_next_documents_references_edges():
+    m = _nb_mod()
+    md = CellNode(m.id, "c0", "markdown", "# Heading\nSee [[some-note]].", "sha256:0", index=0,
+                  title="Heading")
+    code = CellNode(m.id, "c1", "code", "def f(): ...", "sha256:1", index=1)
+    assert md.contains_edge()["relation_type"] == DevRelations.CONTAINS
+    assert md.contains_edge()["source_id"] == m.id and md.contains_edge()["target_id"] == md.id
+    nxt = md.next_edge(code.id)
+    assert nxt["target_id"] == code.id and nxt["relation_type"] == "NEXT"  # the layer's spine relation
+    docs = md.documents_edges(["sym-1", "sym-2"])
+    assert len(docs) == 2 and all(e["relation_type"] == DevRelations.DOCUMENTS for e in docs)
+    refs = md.reference_edges(["some-note"])
+    assert len(refs) == 1 and refs[0]["relation_type"] == DevRelations.REFERENCES
