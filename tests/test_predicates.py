@@ -3,10 +3,27 @@
 from cjm_dev_graph_schema import predicates as P
 
 
-def test_only_two_typed_predicates():
-    assert set(P.PREDICATES) == {"rename-disposition", "version"}
-    assert P.is_typed("rename-disposition") and P.is_typed("version")
+def test_typed_predicate_registry():
+    assert set(P.PREDICATES) == {"rename-disposition", "version", "aka"}
+    assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
+
+
+def test_aka_is_multivalued_slug_set():
+    p = P.get_predicate("aka")
+    assert p.value_type == P.SLUG and p.ordering == P.ORDER_NONE and p.multivalued
+    assert P.is_multivalued("aka")
+    assert not P.is_multivalued("rename-disposition") and not P.is_multivalued("version")
+    assert not P.is_ordered("aka")  # multivalued, not ordered
+    # SLUG canonicalizes case-insensitively, like enum.
+    assert P.canonical_value("aka", "Where-Graph-Begins") == "where-graph-begins"
+
+
+def test_aka_distinct_values_never_conflict():
+    # A note legitimately accrues MANY aliases -> distinct values coexist.
+    assert not P.values_conflict("aka", "slug-a", "slug-b")
+    assert not P.active_contradiction("aka", ["slug-a", "slug-b", "slug-c"])
+    assert not P.soft_conflict("aka", ["slug-a", "slug-b"])  # typed -> never a soft signal either
 
 
 def test_rename_disposition_is_unordered_enum():

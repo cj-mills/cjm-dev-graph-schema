@@ -25,6 +25,7 @@ from typing import Iterable, List, Optional, Tuple
 # Value types.
 ENUM = "enum"          # A small closed-ish value space (e.g. keep | rename:<target>)
 SEMVER = "semver"      # A dotted numeric version
+SLUG = "slug"          # A normalized identifier slug (lowercased; e.g. a note name)
 FREETEXT = "freetext"  # Unconstrained text (the untyped default)
 
 # Volatility: does the slot's value legitimately change over time?
@@ -40,9 +41,10 @@ ORDER_SEMVER = "semver"  # Semver ordering — the greater value supersedes the 
 class Predicate:
     """A typed predicate's value-space (the contradiction decidability metadata)."""
     slug: str          # Predicate slug (the controlled vocabulary key)
-    value_type: str    # ENUM | SEMVER | FREETEXT
+    value_type: str    # ENUM | SEMVER | SLUG | FREETEXT
     volatility: str    # STABLE | CHANGES
     ordering: str      # ORDER_NONE | ORDER_SEMVER
+    multivalued: bool = False  # A SET slot: many distinct values coexist, never conflict (e.g. aliases)
 
 
 # The typed-predicate registry (controlled-with-free-reuse: novel predicates stay
@@ -50,6 +52,12 @@ class Predicate:
 PREDICATES = {
     "rename-disposition": Predicate("rename-disposition", ENUM, STABLE, ORDER_NONE),
     "version": Predicate("version", SEMVER, CHANGES, ORDER_SEMVER),
+    # A note's confirmed equivalent slugs (drifted `[[wiki-links]]`). Multivalued:
+    # one note legitimately carries many aliases, so distinct values NEVER conflict
+    # and never supersede — each `aka` is just another accepted name. Born on-graph
+    # by the propose/confirm worklist (never auto-guessed); ingest resolves drifted
+    # references through them so the dangling edge heals without editing the file.
+    "aka": Predicate("aka", SLUG, STABLE, ORDER_NONE, multivalued=True),
 }
 
 
@@ -73,6 +81,14 @@ def is_ordered(
     """Whether the predicate's values have a "later supersedes earlier" ordering."""
     p = get_predicate(slug)
     return bool(p) and p.ordering != ORDER_NONE
+
+
+def is_multivalued(
+    slug: str,  # Predicate slug
+) -> bool:  # True when the slot legitimately carries many coexisting values
+    """Whether the predicate is a SET slot (distinct values coexist, never conflict)."""
+    p = get_predicate(slug)
+    return bool(p) and p.multivalued
 
 
 def _parse_semver(
@@ -108,7 +124,7 @@ def canonical_value(
         return v
     if p.value_type == SEMVER:
         return v.lstrip("vV").strip()
-    if p.value_type == ENUM:
+    if p.value_type in (ENUM, SLUG):
         return v.lower()
     return v
 
@@ -143,10 +159,11 @@ def values_conflict(
 
     Only typed UNORDERED predicates produce hard conflicts: distinct canonical
     values disagree (the rename-disposition case). Ordered predicates never
-    conflict (newer supersedes); untyped predicates are SOFT (worklist, not a
-    hard contradiction) so this returns False for them."""
+    conflict (newer supersedes); multivalued set predicates never conflict
+    (values coexist); untyped predicates are SOFT (worklist, not a hard
+    contradiction) so this returns False for them."""
     p = get_predicate(slug)
-    if p is None or p.ordering != ORDER_NONE:
+    if p is None or p.ordering != ORDER_NONE or p.multivalued:
         return False
     return canonical_value(slug, value_a) != canonical_value(slug, value_b)
 
@@ -159,7 +176,7 @@ def active_contradiction(
 
     Hard = a typed unordered predicate carrying >=2 distinct canonical values."""
     p = get_predicate(slug)
-    if p is None or p.ordering != ORDER_NONE:
+    if p is None or p.ordering != ORDER_NONE or p.multivalued:
         return False
     canon = {canonical_value(slug, v) for v in active_values}
     return len(canon) >= 2

@@ -126,13 +126,21 @@ class NoteNode:
                                   content_hash=self.content_hash).to_dict()],
         }
 
-    def reference_edges(self) -> List[Dict[str, Any]]:  # REFERENCES edge wire dicts
+    def reference_edges(
+        self,
+        alias_map: Optional[Dict[str, str]] = None,  # Confirmed {drifted-slug: canonical-slug} aliases
+    ) -> List[Dict[str, Any]]:  # REFERENCES edge wire dicts
         """One `REFERENCES` edge per `[[wiki-link]]`, targeting the linked note's id.
 
         Deterministic per (this note, linked note, REFERENCES); a link to a slug
         that has no file yet still resolves to a stable id (dangling links are a
-        legitimate "worth writing later" marker, per the memory convention)."""
-        return [make_edge(self.id, note_node_id(ref), DevRelations.REFERENCES)
+        legitimate "worth writing later" marker, per the memory convention).
+
+        A drifted link slug in `alias_map` is resolved to its CONFIRMED canonical
+        slug first, so a once-dangling reference lands on the real note — the rot
+        the flat file still carries is healed on-graph without editing the file."""
+        m = alias_map or {}
+        return [make_edge(self.id, note_node_id(m.get(ref, ref)), DevRelations.REFERENCES)
                 for ref in self.references]
 
 
