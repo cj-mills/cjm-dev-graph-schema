@@ -34,13 +34,14 @@ class DevNodeKinds:
     CODE_MODULE = "CodeModule"  # A decomposed source-code module (one per .py file / notebook); a source-type node
     CODE_SYMBOL = "CodeSymbol"  # A definition within a module (function/class/method); a first-class addressable subject
     CELL = "Cell"               # One verbatim notebook cell (the lossless source substrate of a notebook CodeModule)
+    CODE_TEXT = "CodeText"      # A non-def top-level region of a plain-.py module (imports/constants/__main__); the verbatim substrate between symbols
 
     @classmethod
     def all(cls) -> list:  # All dev-schema node labels
         """All dev-schema node labels."""
         return [cls.NOTE, cls.DECISION, cls.FACT_SLOT, cls.ASSERTION, cls.EVIDENCE,
                 cls.THREAD, cls.SESSION, cls.PROCEDURE, cls.ENTITY,
-                cls.CODE_MODULE, cls.CODE_SYMBOL, cls.CELL]
+                cls.CODE_MODULE, cls.CODE_SYMBOL, cls.CELL, cls.CODE_TEXT]
 
 
 class DevRelations:

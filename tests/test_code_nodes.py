@@ -6,8 +6,10 @@ addressable subjects with rename-/cross-graph-stable ids.
 """
 
 from cjm_dev_graph_schema.identity import (cell_node_id, code_module_node_id,
-                                           code_symbol_node_id, entity_node_id)
-from cjm_dev_graph_schema.nodes import CellNode, CodeModuleNode, CodeSymbolNode
+                                           code_symbol_node_id, code_text_node_id,
+                                           entity_node_id)
+from cjm_dev_graph_schema.nodes import (CellNode, CodeModuleNode, CodeSymbolNode,
+                                        CodeTextNode)
 from cjm_dev_graph_schema.vocab import DevNodeKinds, DevRelations
 
 
@@ -156,3 +158,43 @@ def test_cell_contains_next_documents_references_edges():
     assert len(docs) == 2 and all(e["relation_type"] == DevRelations.DOCUMENTS for e in docs)
     refs = md.reference_edges(["some-note"])
     assert len(refs) == 1 and refs[0]["relation_type"] == DevRelations.REFERENCES
+
+
+# --- authoring substrate: verbatim symbol body + CodeText regions + CONTAINS ---
+
+def test_top_level_symbol_carries_verbatim_body_and_order():
+    m = _mod()
+    s = CodeSymbolNode(module_id=m.id, qualname="alpha", symbol_kind="function", path="/x",
+                       content_hash="sha256:beef", body="def alpha():\n    return 1",
+                       body_hash="sha256:body", order_index=2)
+    p = s.to_graph_node()["properties"]
+    assert p["body"] == "def alpha():\n    return 1"
+    assert p["body_hash"] == "sha256:body" and p["order_index"] == 2
+
+
+def test_nested_symbol_has_no_body_props():
+    m = _mod()
+    method = CodeSymbolNode(module_id=m.id, qualname="Thing.method", symbol_kind="method", path="/x")
+    p = method.to_graph_node()["properties"]
+    assert "body" not in p and "order_index" not in p  # nested = overlay only (coarse v1)
+
+
+def test_codetext_region_identity_and_wire():
+    m = _mod()
+    t = CodeTextNode(module_id=m.id, region_key="import os", text="import os\nimport sys",
+                     content_hash="sha256:t", order_index=0, path="/x", kind="imports")
+    assert t.id == code_text_node_id(m.id, "import os")
+    node = t.to_graph_node()
+    assert node["label"] == DevNodeKinds.CODE_TEXT
+    assert node["properties"]["text"] == "import os\nimport sys"
+    assert node["properties"]["order_index"] == 0 and node["properties"]["kind"] == "imports"
+    assert len(node["sources"]) == 1  # verbatim region carries content-hash provenance
+    # identity = (module, region key); a different lead line is a different region.
+    assert CodeTextNode(m.id, "import sys", "x", "sha256:y").id != t.id
+
+
+def test_module_contains_edges_order_regions():
+    m = _mod()
+    edges = m.contains_edges(["R0", "R1", "R2"])
+    assert [e["target_id"] for e in edges] == ["R0", "R1", "R2"]
+    assert all(e["source_id"] == m.id and e["relation_type"] == DevRelations.CONTAINS for e in edges)

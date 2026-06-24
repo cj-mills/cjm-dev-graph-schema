@@ -24,8 +24,9 @@ from cjm_context_graph_primitives.locators import FileRef
 from cjm_context_graph_primitives.provenance import SourceRef
 
 from .identity import (assertion_node_id, cell_node_id, code_module_node_id,
-                       code_symbol_node_id, decision_node_id, entity_node_id,
-                       factslot_node_id, note_node_id, session_node_id)
+                       code_symbol_node_id, code_text_node_id, decision_node_id,
+                       entity_node_id, factslot_node_id, note_node_id,
+                       session_node_id)
 from .predicates import canonical_value, is_typed
 from .vocab import DevNodeKinds, DevRelations
 
@@ -401,6 +402,19 @@ class CodeModuleNode:
         return [make_edge(self.id, import_map[imp], DevRelations.IMPORTS)
                 for imp in self.imports if imp in import_map]
 
+    def contains_edges(
+        self,
+        region_ids: List[str],  # ids of the module's ordered top-level regions (top-level CodeSymbols + CodeTexts)
+    ) -> List[Dict[str, Any]]:  # CONTAINS edge wire dicts
+        """One `CONTAINS` edge per ordered top-level region the module is composed of.
+
+        Parallels the notebook compositor's module→Cell CONTAINS: the verbatim
+        ASSEMBLY substrate (interleaving def-regions and non-def text-regions, ordered
+        by `order_index`) that a graph→`.py` canonical emit walks. DEFINES carries the
+        symbol STRUCTURE; CONTAINS carries the verbatim SOURCE order — a class lands in
+        both (DEFINES its methods, CONTAINED by its module)."""
+        return [make_edge(self.id, rid, DevRelations.CONTAINS) for rid in region_ids]
+
 
 @dataclass
 class CodeSymbolNode:
@@ -410,7 +424,17 @@ class CodeSymbolNode:
     off a symbol (a `known-issue`/perf-debt assertion), a Decision can point at the
     symbol that implements it, and a different project's graph can reference it by
     its reproducible id. Structural home is its module (module DEFINES symbol);
-    nesting is another DEFINES (class DEFINES method)."""
+    nesting is another DEFINES (class DEFINES method).
+
+    The AUTHORING-on-graph substrate: a TOP-LEVEL symbol additionally carries its
+    VERBATIM `body` (the exact source span — decorators + any leading comment block
+    through the end of the def) + `body_hash` + an `order_index` among the module's
+    top-level regions. This is the per-symbol verbatim storage of the B source-of-truth
+    model (NOT an AST-as-graph decomposition — the round-trip trap): the body is the
+    authoring unit a graph→`.py` canonical emit reassembles. v1 is COARSE — a class is
+    ONE verbatim body (its methods stay DEFINES overlay symbols with no independent
+    body; method-level authoring is the standing coarse→fine promotion). Nested symbols
+    leave `body`/`order_index` empty."""
     module_id: str                               # Enclosing CodeModule node id; identity input (with qualname)
     qualname: str                                # Qualified name within the module (e.g. "EntityNode.to_graph_node"); identity input
     symbol_kind: str                             # "function" | "class" | "method"
@@ -419,6 +443,9 @@ class CodeSymbolNode:
     lineno: Optional[int] = None                 # 1-based start line (provenance; content, not identity)
     docstring: str = ""                          # Symbol docstring first line (the relevance/description hook)
     calls: List[str] = field(default_factory=list)  # Names this symbol references/calls (raw; resolved to CALLS edges via a corpus map)
+    body: str = ""                               # VERBATIM source of a TOP-LEVEL symbol (decorators+leading comments..end); the authoring unit ("" for nested)
+    body_hash: str = ""                          # Content hash over `body` ("algo:hexdigest"); the authoring slot's content address
+    order_index: Optional[int] = None            # Position among the module's top-level regions (emit order; content, not identity; None for nested)
     properties: Dict[str, Any] = field(default_factory=dict)  # Extra symbol properties
 
     @property
@@ -443,6 +470,11 @@ class CodeSymbolNode:
             props["description"] = self.docstring
         if self.calls:
             props["calls"] = list(self.calls)
+        if self.body:
+            props["body"] = self.body
+            props["body_hash"] = self.body_hash
+        if self.order_index is not None:
+            props["order_index"] = self.order_index
         props.update(self.properties)
         sources = ([SourceRef(locator=FileRef(path=self.path),
                               content_hash=self.content_hash).to_dict()]
@@ -546,3 +578,48 @@ class CellNode:
     ) -> List[Dict[str, Any]]:  # REFERENCES edge wire dicts (cell -> note)
         """One `REFERENCES` edge per `[[wiki-link]]` in a markdown cell (cell -> note id)."""
         return [make_edge(self.id, note_node_id(s), DevRelations.REFERENCES) for s in note_slugs]
+
+
+@dataclass
+class CodeTextNode:
+    """A non-def top-level region of a plain-`.py` module — the verbatim substrate BETWEEN symbols.
+
+    A faithful `.py` round-trip needs more than the def/class bodies: imports, the module
+    docstring, constants, `__all__`, and `if __name__` blocks are top-level source too. A
+    `CodeText` holds one such contiguous non-def region VERBATIM + content-hashed, with an
+    `order_index` placing it among the module's top-level regions. It is the plain-`.py`
+    analogue of a notebook `Cell` (the lossless source substrate) for the regions that are
+    not symbols — so the module's CONTAINS sequence (symbols + texts, ordered) reassembles
+    the source. Identity = (module, region key) where the key anchors on the region's first
+    statement, so it survives edits that don't change what the region leads with."""
+    module_id: str                               # The enclosing CodeModule id; identity input
+    region_key: str                              # Stable key anchoring on the region's first statement; identity input
+    text: str                                    # The region's VERBATIM source text (the lossless store + authoring slot)
+    content_hash: str                            # Content hash over `text` ("algo:hexdigest")
+    order_index: Optional[int] = None            # Position among the module's top-level regions (emit order; content, not identity)
+    path: str = ""                               # Module file path (provenance locator)
+    kind: str = ""                               # Coarse region flavor for relevance/render ("imports" | "docstring" | "code")
+
+    @property
+    def id(self) -> str:  # Deterministic node id
+        """Deterministic node id (from (module, region key))."""
+        return code_text_node_id(self.module_id, self.region_key)
+
+    def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
+        """Build the CodeText node wire dict (root_kind=asserted; verbatim source + provenance)."""
+        props: Dict[str, Any] = {
+            "name": self.kind or "code text",
+            "region_key": self.region_key,
+            "module_id": self.module_id,
+            "text": self.text,
+            "path": self.path,
+            "root_kind": "asserted",
+        }
+        if self.order_index is not None:
+            props["order_index"] = self.order_index
+        if self.kind:
+            props["kind"] = self.kind
+        sources = ([SourceRef(locator=FileRef(path=self.path),
+                              content_hash=self.content_hash).to_dict()]
+                   if self.content_hash and self.path else [])
+        return {"id": self.id, "label": DevNodeKinds.CODE_TEXT, "properties": props, "sources": sources}

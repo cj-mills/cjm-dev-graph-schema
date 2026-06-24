@@ -115,3 +115,19 @@ def cell_node_id(
     the key; fall back to the positional index when absent. Derives off the notebook
     module id so a cell belongs to exactly one notebook."""
     return derive_node_id("cell", module_id, cell_key)
+
+
+def code_text_node_id(
+    module_id: str,  # The enclosing CodeModule node id
+    region_key: str,  # Stable key for the region (the leading line-anchor of its first statement)
+) -> str:  # Deterministic CodeText node id
+    """Code-text-region identity = (module, region key).
+
+    A `CodeText` is a non-def top-level region of a plain-`.py` module (imports,
+    module docstring, constants, `__all__`, `if __name__`) — the verbatim substrate
+    BETWEEN the def/class regions that a faithful round-trip must hold. The region
+    key anchors on the region's first statement (its leading dotted symbol/keyword),
+    so a region keeps its id across edits that don't change what it leads with;
+    derives off the module id so a region belongs to exactly one module. Mirrors
+    `cell_node_id` (a notebook's verbatim substrate) for the plain-`.py` case."""
+    return derive_node_id("code_text", module_id, region_key)
