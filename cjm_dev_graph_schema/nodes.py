@@ -346,6 +346,7 @@ class CodeModuleNode:
     import_name: str = ""                         # Dotted import name (e.g. "cjm_dev_graph_schema.nodes"); display + import resolution, not identity
     docstring: str = ""                          # Module docstring first line (the relevance/description hook)
     imports: List[str] = field(default_factory=list)  # Dotted module names imported (raw; resolved to IMPORTS edges via a corpus map)
+    import_bindings: List[Dict[str, Any]] = field(default_factory=list)  # Top-level imports used by MODULE-LEVEL code (imports-as-projection; symbol-level bindings live on the symbols)
     properties: Dict[str, Any] = field(default_factory=dict)  # Extra module properties
 
     @property
@@ -369,6 +370,8 @@ class CodeModuleNode:
             props["description"] = self.docstring
         if self.imports:
             props["imports"] = list(self.imports)
+        if self.import_bindings:
+            props["import_bindings"] = list(self.import_bindings)
         props.update(self.properties)
         return {
             "id": self.id,
@@ -444,6 +447,7 @@ class CodeSymbolNode:
     docstring: str = ""                          # Symbol docstring first line (the relevance/description hook)
     calls: List[str] = field(default_factory=list)  # Names this symbol CALLS (raw; resolved to CALLS edges via a corpus map)
     refs: List[str] = field(default_factory=list)   # Names this symbol REFERENCES (superset of calls; resolved to USES edges via the corpus map)
+    import_bindings: List[Dict[str, Any]] = field(default_factory=list)  # Top-level imports this symbol's refs use (travel with it on a move; imports-as-projection)
     body: str = ""                               # VERBATIM source of a TOP-LEVEL symbol (decorators+leading comments..end); the authoring unit ("" for nested)
     body_hash: str = ""                          # Content hash over `body` ("algo:hexdigest"); the authoring slot's content address
     order_index: Optional[int] = None            # Position among the module's top-level regions (emit order; content, not identity; None for nested)
@@ -473,6 +477,8 @@ class CodeSymbolNode:
             props["calls"] = list(self.calls)
         if self.refs:
             props["refs"] = list(self.refs)
+        if self.import_bindings:
+            props["import_bindings"] = list(self.import_bindings)
         if self.body:
             props["body"] = self.body
             props["body_hash"] = self.body_hash
