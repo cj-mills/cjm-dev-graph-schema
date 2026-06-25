@@ -100,6 +100,19 @@ def test_symbol_wire_and_call_edges():
     assert targets == {"SYM-MAKEEDGE", "SYM-NOTEID"}
 
 
+def test_symbol_uses_edges_superset_dedups_and_skips_self():
+    m = _mod()
+    s = CodeSymbolNode(module_id=m.id, qualname="Widget", symbol_kind="class",
+                       path="/x", content_hash="sha256:beef",
+                       refs=["Base", "MyType", "MyType", "Widget", "external"])  # dup + self + unresolved
+    node = s.to_graph_node()
+    assert node["properties"]["refs"] == ["Base", "MyType", "MyType", "Widget", "external"]
+    uses = s.uses_edges({"Base": "SYM-BASE", "MyType": "SYM-MYTYPE", "Widget": s.id})
+    assert all(e["relation_type"] == DevRelations.USES for e in uses)
+    targets = {e["target_id"] for e in uses}
+    assert targets == {"SYM-BASE", "SYM-MYTYPE"}        # dedup'd; self ("Widget"->s.id) skipped
+
+
 def test_symbol_without_content_hash_has_no_source():
     s = CodeSymbolNode(module_id="m", qualname="f", symbol_kind="function", path="/x")
     assert s.to_graph_node()["sources"] == []

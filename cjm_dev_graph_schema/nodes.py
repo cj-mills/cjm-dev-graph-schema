@@ -442,7 +442,8 @@ class CodeSymbolNode:
     content_hash: str = ""                        # Content hash over the file bytes (the symbol shares its module's source file)
     lineno: Optional[int] = None                 # 1-based start line (provenance; content, not identity)
     docstring: str = ""                          # Symbol docstring first line (the relevance/description hook)
-    calls: List[str] = field(default_factory=list)  # Names this symbol references/calls (raw; resolved to CALLS edges via a corpus map)
+    calls: List[str] = field(default_factory=list)  # Names this symbol CALLS (raw; resolved to CALLS edges via a corpus map)
+    refs: List[str] = field(default_factory=list)   # Names this symbol REFERENCES (superset of calls; resolved to USES edges via the corpus map)
     body: str = ""                               # VERBATIM source of a TOP-LEVEL symbol (decorators+leading comments..end); the authoring unit ("" for nested)
     body_hash: str = ""                          # Content hash over `body` ("algo:hexdigest"); the authoring slot's content address
     order_index: Optional[int] = None            # Position among the module's top-level regions (emit order; content, not identity; None for nested)
@@ -470,6 +471,8 @@ class CodeSymbolNode:
             props["description"] = self.docstring
         if self.calls:
             props["calls"] = list(self.calls)
+        if self.refs:
+            props["refs"] = list(self.refs)
         if self.body:
             props["body"] = self.body
             props["body_hash"] = self.body_hash
@@ -499,6 +502,24 @@ class CodeSymbolNode:
         resolution is best-effort name matching, not a full scope analysis."""
         return [make_edge(self.id, call_map[c], DevRelations.CALLS)
                 for c in self.calls if c in call_map]
+
+    def uses_edges(
+        self,
+        call_map: Dict[str, str],  # {referenced-name: target CodeSymbol id} for intra-corpus symbols
+    ) -> List[Dict[str, Any]]:  # USES edge wire dicts
+        """One `USES` edge per reference that resolves to a symbol in the corpus map.
+
+        The superset of `calls_edges` — includes base classes, type annotations,
+        decorators, and bare-name loads, not just call-callees. Unresolved names
+        (external, builtins, locals) are skipped (best-effort name matching)."""
+        seen: set = set()
+        out: List[Dict[str, Any]] = []
+        for r in self.refs:
+            tgt = call_map.get(r)
+            if tgt and tgt != self.id and tgt not in seen:  # skip self-reference + dups
+                seen.add(tgt)
+                out.append(make_edge(self.id, tgt, DevRelations.USES))
+        return out
 
 
 @dataclass

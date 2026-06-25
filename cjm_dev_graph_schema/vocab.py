@@ -62,7 +62,8 @@ class DevRelations:
     SUPPORTED_BY = "SUPPORTED_BY"  # Decision -> premise Assertion (the reasoning substrate)
     DEFINES = "DEFINES"            # CodeModule -> CodeSymbol it declares (and CodeSymbol -> nested CodeSymbol)
     IMPORTS = "IMPORTS"            # CodeModule -> a module it imports (intra/inter-repo; dangles until that module lands)
-    CALLS = "CALLS"                # CodeSymbol -> a CodeSymbol it references/calls
+    CALLS = "CALLS"                # CodeSymbol -> a CodeSymbol it CALLS (call-callees only; dead-code/relocation semantics)
+    USES = "USES"                  # CodeSymbol -> a CodeSymbol it REFERENCES (superset of CALLS: + base classes, annotations, decorators, name loads); cohesion + imports-as-projection
     CONTAINS = "CONTAINS"          # Notebook CodeModule -> a verbatim Cell it is composed of (the lossless source substrate)
     DOCUMENTS = "DOCUMENTS"        # A markdown Cell -> the CodeSymbol(s) it precedes/documents (notebook interleaving)
 
@@ -76,7 +77,7 @@ class DevRelations:
         """All dev-domain edge relations, including the reused overlay relations."""
         return [cls.REFERENCES, cls.ABOUT, cls.ON_SLOT, cls.DECIDED_IN, cls.PRODUCED_IN,
                 cls.EVIDENCED_BY, cls.DEPENDS_ON, cls.LANDS_AT, cls.CONTRADICTS, cls.SUPPORTED_BY,
-                cls.DEFINES, cls.IMPORTS, cls.CALLS, cls.CONTAINS, cls.DOCUMENTS,
+                cls.DEFINES, cls.IMPORTS, cls.CALLS, cls.USES, cls.CONTAINS, cls.DOCUMENTS,
                 cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 
