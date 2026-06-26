@@ -26,7 +26,8 @@ from cjm_context_graph_primitives.provenance import SourceRef
 from .identity import (assertion_node_id, cell_node_id, code_module_node_id,
                        code_symbol_node_id, code_text_node_id, decision_node_id,
                        entity_node_id, factslot_node_id, note_node_id,
-                       series_node_id, session_node_id, topic_node_id)
+                       section_node_id, series_node_id, session_node_id,
+                       topic_node_id)
 from .predicates import canonical_value, is_typed
 from .vocab import DevNodeKinds, DevRelations
 
@@ -105,6 +106,7 @@ class NoteNode:
     series_refs: List[str] = field(default_factory=list)  # Series keys this note belongs to -> IN_SERIES edges
     aliases: List[str] = field(default_factory=list)     # Alternate identities (old URLs/slugs) resolving to this note
     cross_post_refs: List[Tuple[str, str]] = field(default_factory=list)  # (target permalink slug, section anchor) cross-post links -> REFERENCES edges
+    sections: List["SectionNode"] = field(default_factory=list)  # The note's body decomposed into ordered Section nodes (when decomposed; emitted by corpus_graph_elements)
 
     @property
     def id(self) -> str:  # Deterministic node id
@@ -167,17 +169,22 @@ class NoteNode:
         section-node tier (the 272-headings problem) resolves it to a section later.
         A `cross_post` marker distinguishes these from wiki-link REFERENCES.
 
-        Note (v1): the edge id derives from (source, target, REFERENCES) only, so
-        two links to the SAME post with DIFFERENT anchors collapse to one edge (the
-        first anchor wins) — acceptable until section nodes land, since the
-        post-to-post relationship is what's modeled here."""
+        An ANCHORED link resolves onto the target post's SECTION node by
+        construction — `section_node_id(target note, anchor)` is exactly the id that
+        post's heading mints (the anchor slug == the heading slug), so the edge lands
+        on the section without a lookup (dangling-safe if that post/section isn't
+        ingested; the note-level tie is still recoverable via the section's
+        HAS_SECTION). An UN-anchored link targets the note itself."""
         m = alias_map or {}
         edges = []
         for permalink, anchor in self.cross_post_refs:
-            target = note_node_id(m.get(permalink, permalink))
+            target_note = note_node_id(m.get(permalink, permalink))
             props: Dict[str, Any] = {"cross_post": True}
             if anchor:
                 props["anchor"] = anchor
+                target = section_node_id(target_note, anchor)  # resolve onto the section
+            else:
+                target = target_note
             edges.append(make_edge(self.id, target, DevRelations.REFERENCES, props))
         return edges
 
@@ -256,6 +263,70 @@ class SeriesNode:
                            "root_kind": "asserted"},
             "sources": [],
         }
+
+
+@dataclass
+class SectionNode:
+    """One heading-delimited section of a Note's body — the navigable unit + anchor target.
+
+    The first time body CONTENT comes on-graph (the coarse Note stores only
+    frontmatter/relationships): a Note's body decomposes into ordered Sections,
+    each carrying its VERBATIM text (faithful at the section grain — Scope A does
+    not yet promise whole-file byte-exact round-trip). Identity = (note, anchor
+    slug), the same slug a cross-post `#anchor` targets, so inbound anchored
+    REFERENCES resolve by construction. Membership rides `HAS_SECTION` (note ->
+    section); the heading hierarchy rides the layer's `PART_OF` spine relation
+    (section -> enclosing section); document order is the `order` property."""
+    note_id: str                                 # Enclosing Note id; identity input
+    anchor: str                                  # Heading slug (disambiguated); identity input
+    level: int                                   # Heading depth (1-6)
+    title: str                                   # Heading text
+    text: str = ""                               # Verbatim section body (heading -> next equal/higher heading)
+    order: int = 0                               # Document-order index within the note (content, not identity)
+    parent_anchor: Optional[str] = None          # Enclosing section's anchor (None at top level); the PART_OF target
+    content_hash: str = ""                       # Content hash over the section text
+    path: str = ""                               # Source file path (provenance locator)
+
+    @property
+    def id(self) -> str:  # Deterministic node id
+        """Deterministic node id (from (note, anchor))."""
+        return section_node_id(self.note_id, self.anchor)
+
+    def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
+        """Build the Section node wire dict (root_kind=asserted; verbatim section text)."""
+        props: Dict[str, Any] = {
+            "name": self.title or self.anchor,
+            "anchor": self.anchor,
+            "level": self.level,
+            "title": self.title,
+            "text": self.text,
+            "order": self.order,
+            "note_id": self.note_id,
+            "path": self.path,
+            "root_kind": "asserted",
+        }
+        sources = ([SourceRef(locator=FileRef(path=self.path),
+                              content_hash=self.content_hash).to_dict()]
+                   if self.path and self.content_hash else [])
+        return {
+            "id": self.id,
+            "label": DevNodeKinds.SECTION,
+            "properties": props,
+            "sources": sources,
+        }
+
+    def structural_edges(self) -> List[Dict[str, Any]]:  # HAS_SECTION + PART_OF edge wire dicts
+        """The note-membership edge + the heading-hierarchy edge.
+
+        `Note HAS_SECTION self` (membership); `self PART_OF enclosing-section` when
+        this heading nests under another (a stable id from (note, parent anchor),
+        dangling-safe if the parent isn't emitted). Document order is a property,
+        not an edge, to avoid a NEXT edge per heading at 272-headings scale."""
+        edges = [make_edge(self.note_id, self.id, DevRelations.HAS_SECTION)]
+        if self.parent_anchor:
+            edges.append(make_edge(self.id, section_node_id(self.note_id, self.parent_anchor),
+                                   SpineRelations.PART_OF))
+        return edges
 
 
 @dataclass

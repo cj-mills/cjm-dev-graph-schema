@@ -1,8 +1,10 @@
 """Coarse-tier NoteNode: deterministic identity, wire-dict mapping, REFERENCES edges."""
 
-from cjm_dev_graph_schema.identity import (note_node_id, series_node_id,
-                                           topic_node_id)
-from cjm_dev_graph_schema.nodes import NoteNode, SeriesNode, TopicNode
+from cjm_context_graph_layer.grammar import SpineRelations
+from cjm_dev_graph_schema.identity import (note_node_id, section_node_id,
+                                           series_node_id, topic_node_id)
+from cjm_dev_graph_schema.nodes import (NoteNode, SectionNode, SeriesNode,
+                                        TopicNode)
 from cjm_dev_graph_schema.vocab import DevNodeKinds, DevRelations
 
 
@@ -76,16 +78,20 @@ def test_series_edges_membership():
     assert edges[0]["target_id"] == series_node_id("education-notes")
 
 
-def test_cross_post_edges_carry_anchor_and_marker():
+def test_cross_post_edges_anchor_resolves_to_section_id():
     note = _note(cross_post_refs=[("google-colab-getting-started-tutorial", "using-hardware-acceleration"),
                                   ("mamba-getting-started-tutorial-windows", "")])
     edges = note.cross_post_edges()
     assert all(e["relation_type"] == DevRelations.REFERENCES for e in edges)
-    by_target = {e["target_id"]: e for e in edges}
-    anchored = by_target[note_node_id("google-colab-getting-started-tutorial")]
-    assert anchored["properties"] == {"cross_post": True, "anchor": "using-hardware-acceleration"}
-    plain = by_target[note_node_id("mamba-getting-started-tutorial-windows")]
-    assert plain["properties"] == {"cross_post": True}  # no anchor key when empty
+    by_props = {(e["target_id"]): e for e in edges}
+    # Anchored: resolves ONTO the target post's section id (Fork C close), anchor kept.
+    target_note = note_node_id("google-colab-getting-started-tutorial")
+    sec_id = section_node_id(target_note, "using-hardware-acceleration")
+    assert sec_id in by_props
+    assert by_props[sec_id]["properties"] == {"cross_post": True, "anchor": "using-hardware-acceleration"}
+    # Un-anchored: targets the note itself.
+    plain = note_node_id("mamba-getting-started-tutorial-windows")
+    assert by_props[plain]["properties"] == {"cross_post": True}
 
 
 def test_cross_post_alias_resolution():
@@ -118,3 +124,41 @@ def test_series_node_shape_and_identity():
     assert s.id == series_node_id("education-notes")
     assert node["label"] == DevNodeKinds.SERIES
     assert node["properties"]["title"] == "Education Notes"
+
+
+# --- Increment 4: Section nodes (body content on-graph) -----------------------
+
+def test_section_identity_and_anchor_resolution_by_construction():
+    nid = note_node_id("pytorch-train-object-detector-yolox-tutorial")
+    sec = SectionNode(note_id=nid, anchor="loading-the-model", level=2, title="Loading the Model")
+    # Identity = (note, anchor) — the SAME id a cross-post #anchor REFERENCES targets.
+    assert sec.id == section_node_id(nid, "loading-the-model")
+
+
+def test_section_node_shape_carries_verbatim_text():
+    nid = note_node_id("x")
+    node = SectionNode(note_id=nid, anchor="intro", level=1, title="Intro",
+                       text="The body.\n", order=0, path="/c/posts/x/index.md",
+                       content_hash="sha256:abc").to_graph_node()
+    assert node["label"] == DevNodeKinds.SECTION
+    assert node["properties"]["text"] == "The body.\n"
+    assert node["properties"]["level"] == 1 and node["properties"]["order"] == 0
+    assert node["properties"]["anchor"] == "intro"
+    assert node["sources"][0]["content_hash"] == "sha256:abc"
+
+
+def test_section_structural_edges_membership_and_hierarchy():
+    nid = note_node_id("x")
+    top = SectionNode(note_id=nid, anchor="setup", level=1, title="Setup")
+    child = SectionNode(note_id=nid, anchor="install", level=2, title="Install",
+                        parent_anchor="setup")
+    # Top-level: only HAS_SECTION (note -> section), no PART_OF.
+    te = top.structural_edges()
+    assert len(te) == 1
+    assert te[0]["source_id"] == nid and te[0]["relation_type"] == DevRelations.HAS_SECTION
+    assert te[0]["target_id"] == top.id
+    # Nested: HAS_SECTION + PART_OF -> the enclosing section.
+    ce = child.structural_edges()
+    assert {e["relation_type"] for e in ce} == {DevRelations.HAS_SECTION, SpineRelations.PART_OF}
+    part_of = [e for e in ce if e["relation_type"] == SpineRelations.PART_OF][0]
+    assert part_of["target_id"] == section_node_id(nid, "setup")

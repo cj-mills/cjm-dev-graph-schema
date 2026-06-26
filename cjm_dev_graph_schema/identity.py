@@ -51,6 +51,21 @@ def series_node_id(
     return derive_node_id("series", key)
 
 
+def section_node_id(
+    note_id: str,  # The enclosing Note node id
+    anchor: str,   # The heading's slug anchor (disambiguated; e.g. "loading-the-model")
+) -> str:  # Deterministic Section node id
+    """Section identity = (enclosing Note, heading anchor slug).
+
+    The anchor is the slugified heading (`## Loading the Model` -> `loading-the-model`,
+    duplicate headings disambiguated `-1/-2`) — the SAME slug a cross-post `#anchor`
+    link targets, so an inbound anchored REFERENCES resolves to this id by
+    construction (no lookup). Derives off the note id so a section belongs to exactly
+    one note; the anchor is stable across edits that don't rename the heading, mirroring
+    `code_text_node_id` (a region keyed on what it leads with)."""
+    return derive_node_id("section", note_id, anchor)
+
+
 def entity_node_id(
     kind: str,  # Entity sub-kind discriminator (e.g. "repo", "stage", "capability", "term")
     key: str,   # Stable key within that sub-kind (e.g. the repo name, the stage number)

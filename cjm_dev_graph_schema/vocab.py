@@ -37,6 +37,7 @@ class DevNodeKinds:
     CODE_TEXT = "CodeText"      # A non-def top-level region of a plain-.py module (imports/constants/__main__); the verbatim substrate between symbols
     TOPIC = "Topic"             # A category/tag facet (a thematic clustering subject; shared across notes via TAGGED)
     SERIES = "Series"           # An ordered collection/progression a note belongs to (shared via IN_SERIES)
+    SECTION = "Section"         # One heading-delimited section of a Note's body (the navigable unit + anchor target); verbatim section text
 
     @classmethod
     def all(cls) -> list:  # All dev-schema node labels
@@ -44,7 +45,7 @@ class DevNodeKinds:
         return [cls.NOTE, cls.DECISION, cls.FACT_SLOT, cls.ASSERTION, cls.EVIDENCE,
                 cls.THREAD, cls.SESSION, cls.PROCEDURE, cls.ENTITY,
                 cls.CODE_MODULE, cls.CODE_SYMBOL, cls.CELL, cls.CODE_TEXT,
-                cls.TOPIC, cls.SERIES]
+                cls.TOPIC, cls.SERIES, cls.SECTION]
 
 
 class DevRelations:
@@ -71,6 +72,7 @@ class DevRelations:
     DOCUMENTS = "DOCUMENTS"        # A markdown Cell -> the CodeSymbol(s) it precedes/documents (notebook interleaving)
     TAGGED = "TAGGED"              # Note -> Topic (a category/tag facet; the thematic-clustering edge)
     IN_SERIES = "IN_SERIES"        # Note -> Series it belongs to (membership; the order, when known, rides an `order` edge property)
+    HAS_SECTION = "HAS_SECTION"    # Note -> a Section of its body (membership; the section hierarchy rides PART_OF, order rides the `order` prop)
 
     # Overlay relations this domain reuses (owned by the layer; re-exposed for convenience).
     SUPERSEDES = OverlayRelations.SUPERSEDES
@@ -83,7 +85,7 @@ class DevRelations:
         return [cls.REFERENCES, cls.ABOUT, cls.ON_SLOT, cls.DECIDED_IN, cls.PRODUCED_IN,
                 cls.EVIDENCED_BY, cls.DEPENDS_ON, cls.LANDS_AT, cls.CONTRADICTS, cls.SUPPORTED_BY,
                 cls.DEFINES, cls.IMPORTS, cls.CALLS, cls.USES, cls.CONTAINS, cls.DOCUMENTS,
-                cls.TAGGED, cls.IN_SERIES,
+                cls.TAGGED, cls.IN_SERIES, cls.HAS_SECTION,
                 cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 
