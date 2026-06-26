@@ -35,13 +35,16 @@ class DevNodeKinds:
     CODE_SYMBOL = "CodeSymbol"  # A definition within a module (function/class/method); a first-class addressable subject
     CELL = "Cell"               # One verbatim notebook cell (the lossless source substrate of a notebook CodeModule)
     CODE_TEXT = "CodeText"      # A non-def top-level region of a plain-.py module (imports/constants/__main__); the verbatim substrate between symbols
+    TOPIC = "Topic"             # A category/tag facet (a thematic clustering subject; shared across notes via TAGGED)
+    SERIES = "Series"           # An ordered collection/progression a note belongs to (shared via IN_SERIES)
 
     @classmethod
     def all(cls) -> list:  # All dev-schema node labels
         """All dev-schema node labels."""
         return [cls.NOTE, cls.DECISION, cls.FACT_SLOT, cls.ASSERTION, cls.EVIDENCE,
                 cls.THREAD, cls.SESSION, cls.PROCEDURE, cls.ENTITY,
-                cls.CODE_MODULE, cls.CODE_SYMBOL, cls.CELL, cls.CODE_TEXT]
+                cls.CODE_MODULE, cls.CODE_SYMBOL, cls.CELL, cls.CODE_TEXT,
+                cls.TOPIC, cls.SERIES]
 
 
 class DevRelations:
@@ -66,6 +69,8 @@ class DevRelations:
     USES = "USES"                  # CodeSymbol -> a CodeSymbol it REFERENCES (superset of CALLS: + base classes, annotations, decorators, name loads); cohesion + imports-as-projection
     CONTAINS = "CONTAINS"          # Notebook CodeModule -> a verbatim Cell it is composed of (the lossless source substrate)
     DOCUMENTS = "DOCUMENTS"        # A markdown Cell -> the CodeSymbol(s) it precedes/documents (notebook interleaving)
+    TAGGED = "TAGGED"              # Note -> Topic (a category/tag facet; the thematic-clustering edge)
+    IN_SERIES = "IN_SERIES"        # Note -> Series it belongs to (membership; the order, when known, rides an `order` edge property)
 
     # Overlay relations this domain reuses (owned by the layer; re-exposed for convenience).
     SUPERSEDES = OverlayRelations.SUPERSEDES
@@ -78,6 +83,7 @@ class DevRelations:
         return [cls.REFERENCES, cls.ABOUT, cls.ON_SLOT, cls.DECIDED_IN, cls.PRODUCED_IN,
                 cls.EVIDENCED_BY, cls.DEPENDS_ON, cls.LANDS_AT, cls.CONTRADICTS, cls.SUPPORTED_BY,
                 cls.DEFINES, cls.IMPORTS, cls.CALLS, cls.USES, cls.CONTAINS, cls.DOCUMENTS,
+                cls.TAGGED, cls.IN_SERIES,
                 cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 

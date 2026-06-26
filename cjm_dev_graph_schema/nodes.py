@@ -17,7 +17,7 @@ the value-space conflict logic lives in `predicates`.
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from cjm_context_graph_layer.grammar import SpineRelations, make_edge
 from cjm_context_graph_primitives.locators import FileRef
@@ -26,7 +26,7 @@ from cjm_context_graph_primitives.provenance import SourceRef
 from .identity import (assertion_node_id, cell_node_id, code_module_node_id,
                        code_symbol_node_id, code_text_node_id, decision_node_id,
                        entity_node_id, factslot_node_id, note_node_id,
-                       session_node_id)
+                       series_node_id, session_node_id, topic_node_id)
 from .predicates import canonical_value, is_typed
 from .vocab import DevNodeKinds, DevRelations
 
@@ -101,6 +101,10 @@ class NoteNode:
     note_type: Optional[str] = None              # Memory category if present (user | feedback | project | reference)
     references: List[str] = field(default_factory=list)  # Slugs this note links to (`[[link]]`)
     metadata: Dict[str, Any] = field(default_factory=dict)  # Extra frontmatter carried verbatim
+    categories: List[str] = field(default_factory=list)  # Normalized category/tag keys -> TAGGED edges to Topic nodes
+    series_refs: List[str] = field(default_factory=list)  # Series keys this note belongs to -> IN_SERIES edges
+    aliases: List[str] = field(default_factory=list)     # Alternate identities (old URLs/slugs) resolving to this note
+    cross_post_refs: List[Tuple[str, str]] = field(default_factory=list)  # (target permalink slug, section anchor) cross-post links -> REFERENCES edges
 
     @property
     def id(self) -> str:  # Deterministic node id
@@ -118,6 +122,12 @@ class NoteNode:
         }
         if self.note_type:
             props["note_type"] = self.note_type
+        if self.categories:
+            props["categories"] = list(self.categories)
+        if self.series_refs:
+            props["series_refs"] = list(self.series_refs)
+        if self.aliases:
+            props["aliases"] = list(self.aliases)
         if self.metadata:
             props["metadata"] = dict(self.metadata)
         return {
@@ -144,6 +154,108 @@ class NoteNode:
         m = alias_map or {}
         return [make_edge(self.id, note_node_id(m.get(ref, ref)), DevRelations.REFERENCES)
                 for ref in self.references]
+
+    def cross_post_edges(
+        self,
+        alias_map: Optional[Dict[str, str]] = None,  # Confirmed {drifted-slug: canonical-slug} aliases
+    ) -> List[Dict[str, Any]]:  # REFERENCES edge wire dicts (cross-post markdown links)
+        """One `REFERENCES` edge per cross-post markdown link, anchor on the edge.
+
+        Reuses `REFERENCES` (a cross-post link IS a soft cross-reference) but the
+        target is a real permalink slug (not a `[[wiki-slug]]`), and the `#section`
+        anchor rides as an edge property (`anchor`) — left UNRESOLVED for now: the
+        section-node tier (the 272-headings problem) resolves it to a section later.
+        A `cross_post` marker distinguishes these from wiki-link REFERENCES.
+
+        Note (v1): the edge id derives from (source, target, REFERENCES) only, so
+        two links to the SAME post with DIFFERENT anchors collapse to one edge (the
+        first anchor wins) — acceptable until section nodes land, since the
+        post-to-post relationship is what's modeled here."""
+        m = alias_map or {}
+        edges = []
+        for permalink, anchor in self.cross_post_refs:
+            target = note_node_id(m.get(permalink, permalink))
+            props: Dict[str, Any] = {"cross_post": True}
+            if anchor:
+                props["anchor"] = anchor
+            edges.append(make_edge(self.id, target, DevRelations.REFERENCES, props))
+        return edges
+
+    def tagged_edges(self) -> List[Dict[str, Any]]:  # TAGGED edge wire dicts
+        """One `TAGGED` edge per category, targeting the shared Topic node's id.
+
+        Independent notes sharing a category converge on one Topic (deterministic
+        id from the normalized key) — the thematic-clustering substrate. The Topic
+        node itself is emitted once at corpus level (deduped across notes)."""
+        return [make_edge(self.id, topic_node_id(c), DevRelations.TAGGED)
+                for c in self.categories]
+
+    def series_edges(self) -> List[Dict[str, Any]]:  # IN_SERIES edge wire dicts
+        """One `IN_SERIES` edge per series this note belongs to.
+
+        Membership only (v1): the post declares which series it is in (a callout /
+        frontmatter link); the ORDER within the series is known from the series-def
+        listing, not the post, so it rides an `order` edge property populated later
+        (reserve-up-front: the relation supports ordering, emission is progressive)."""
+        return [make_edge(self.id, series_node_id(s), DevRelations.IN_SERIES)
+                for s in self.series_refs]
+
+
+@dataclass
+class TopicNode:
+    """A category/tag facet — a thematic-clustering subject shared across notes.
+
+    Asserted-root (a curated facet, not ingested content). Identity is the
+    normalized key, so every `TAGGED` edge for the same category converges here;
+    the corpus driver emits one Topic per distinct key (deduped across notes).
+    First-class (not a generic term-subject) because projection enumerates facets:
+    `categories ≈ topic facets` is one input to audience-parameterized projection
+    (the same mechanism as the visibility/experience-level dial)."""
+    key: str                    # Normalized category key (the identity input; e.g. "object-detection")
+    name: str = ""              # Display name (defaults to the key when unset)
+
+    @property
+    def id(self) -> str:  # Deterministic node id
+        """Deterministic node id (from the normalized key)."""
+        return topic_node_id(self.key)
+
+    def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
+        """Build the Topic node wire dict (root_kind=asserted; no provenance file)."""
+        return {
+            "id": self.id,
+            "label": DevNodeKinds.TOPIC,
+            "properties": {"key": self.key, "name": self.name or self.key,
+                           "root_kind": "asserted"},
+            "sources": [],
+        }
+
+
+@dataclass
+class SeriesNode:
+    """An ordered collection/progression a note belongs to (a Quarto series, …).
+
+    Asserted-root, shared across its member notes via `IN_SERIES` (each member's
+    edge converges on this one node by the stable key). First-class because
+    `series ≈ ordered progression` is the other audience-projection input
+    (a guided path through notes); the member ORDER lives on the IN_SERIES edges
+    (populated from the series-def listing, not the members)."""
+    key: str                    # Durable series key (the identity input; e.g. "education-notes")
+    title: str = ""             # Display title (defaults to the key when unset)
+
+    @property
+    def id(self) -> str:  # Deterministic node id
+        """Deterministic node id (from the stable key)."""
+        return series_node_id(self.key)
+
+    def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
+        """Build the Series node wire dict (root_kind=asserted; no provenance file)."""
+        return {
+            "id": self.id,
+            "label": DevNodeKinds.SERIES,
+            "properties": {"key": self.key, "title": self.title or self.key,
+                           "root_kind": "asserted"},
+            "sources": [],
+        }
 
 
 @dataclass

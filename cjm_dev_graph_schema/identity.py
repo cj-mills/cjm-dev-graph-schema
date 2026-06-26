@@ -27,6 +27,30 @@ def note_node_id(
     return derive_node_id("note", slug)
 
 
+def topic_node_id(
+    name: str,  # The topic/category name (already normalized to its stable slug key)
+) -> str:  # Deterministic Topic node id
+    """Topic identity = its normalized name slug.
+
+    A category/tag is shared across notes, so independent `TAGGED` edges from
+    different notes converge on one Topic node — the same name (case- and
+    separator-normalized to a kebab slug by the markdown core's harvester) always
+    derives the same id, the way `[[wiki-links]]` converge on one Note."""
+    return derive_node_id("topic", name)
+
+
+def series_node_id(
+    key: str,  # The series' stable key (its slug/permalink stem, e.g. "education-notes")
+) -> str:  # Deterministic Series node id
+    """Series identity = its stable key.
+
+    A series (an ordered collection a note belongs to) is shared across its member
+    notes, so each member's `IN_SERIES` edge converges on one Series node. The key
+    is the series' durable slug (e.g. the `/series/.../<key>.html` permalink stem),
+    independent of any member."""
+    return derive_node_id("series", key)
+
+
 def entity_node_id(
     kind: str,  # Entity sub-kind discriminator (e.g. "repo", "stage", "capability", "term")
     key: str,   # Stable key within that sub-kind (e.g. the repo name, the stage number)
