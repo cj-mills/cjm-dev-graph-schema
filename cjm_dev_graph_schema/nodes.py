@@ -107,6 +107,7 @@ class NoteNode:
     aliases: List[str] = field(default_factory=list)     # Alternate identities (old URLs/slugs) resolving to this note
     cross_post_refs: List[Tuple[str, str]] = field(default_factory=list)  # (target permalink slug, section anchor) cross-post links -> REFERENCES edges
     sections: List["SectionNode"] = field(default_factory=list)  # The note's body decomposed into ordered Section nodes (when decomposed; emitted by corpus_graph_elements)
+    frontmatter_raw: str = ""                    # Verbatim frontmatter prefix (fences + YAML + trailing newline); the lossless round-trip source for the frontmatter. Set in lossless mode (memory); "" otherwise. `frontmatter_raw + concat(sections.raw in order) == file bytes`
 
     @property
     def id(self) -> str:  # Deterministic node id
@@ -132,6 +133,8 @@ class NoteNode:
             props["aliases"] = list(self.aliases)
         if self.metadata:
             props["metadata"] = dict(self.metadata)
+        if self.frontmatter_raw:  # only the lossless path carries it; Scope-A Note wire dicts unchanged
+            props["frontmatter_raw"] = self.frontmatter_raw
         return {
             "id": self.id,
             "label": DevNodeKinds.NOTE,
@@ -278,14 +281,15 @@ class SectionNode:
     section); the heading hierarchy rides the layer's `PART_OF` spine relation
     (section -> enclosing section); document order is the `order` property."""
     note_id: str                                 # Enclosing Note id; identity input
-    anchor: str                                  # Heading slug (disambiguated); identity input
-    level: int                                   # Heading depth (1-6)
-    title: str                                   # Heading text
-    text: str = ""                               # Verbatim section body (heading -> next equal/higher heading)
+    anchor: str                                  # Heading slug (disambiguated; reserved "_preamble" for the pre-first-heading region); identity input
+    level: int                                   # Heading depth (1-6); 0 for the preamble region
+    title: str                                   # Heading text ("" for the preamble region)
+    text: str = ""                               # Verbatim section body, heading line EXCLUDED (the navigable/anchor-target unit; Scope A)
     order: int = 0                               # Document-order index within the note (content, not identity)
     parent_anchor: Optional[str] = None          # Enclosing section's anchor (None at top level); the PART_OF target
-    content_hash: str = ""                       # Content hash over the section text
+    content_hash: str = ""                       # Content hash over the section's lossless span (`raw` when set, else `text`)
     path: str = ""                               # Source file path (provenance locator)
+    raw: str = ""                                # Verbatim span INCLUDING the heading line (heading.start -> next heading.start); the lossless round-trip source. Concatenating every section's `raw` in `order` reproduces the body byte-for-byte (M1). "" in Scope-A mode (posts); set in lossless mode (memory)
 
     @property
     def id(self) -> str:  # Deterministic node id
@@ -305,6 +309,8 @@ class SectionNode:
             "path": self.path,
             "root_kind": "asserted",
         }
+        if self.raw:  # only the lossless path carries it; keep Scope-A wire dicts unchanged
+            props["raw"] = self.raw
         sources = ([SourceRef(locator=FileRef(path=self.path),
                               content_hash=self.content_hash).to_dict()]
                    if self.path and self.content_hash else [])
