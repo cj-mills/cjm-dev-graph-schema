@@ -35,6 +35,17 @@ CHANGES = "changes"    # Legitimately evolves (version, status, …)
 # Ordering: is there a known "later supersedes earlier" relation on values?
 ORDER_NONE = "none"      # No ordering — two distinct values genuinely conflict
 ORDER_SEMVER = "semver"  # Semver ordering — the greater value supersedes the lesser
+ORDER_ENUM = "enum"      # A fixed lifecycle sequence — a later stage supersedes an earlier (see `order_values`)
+
+# Work-item lifecycle (the readiness spine's authored ground truth): a work-item's
+# completion state. `done` supersedes `open` — the healthy forward transition, so
+# re-asserting `done` auto-supersedes the prior `open` exactly as a version bump
+# does (never a contradiction). `ready`/`blocked` are NEVER asserted here — they
+# are DERIVED on read by the readiness projector (the never-hand-maintain-a-derived
+# -field rule: there is no write path for them).
+TASK_STATE = "task_state"  # The work-item completion predicate
+TASK_OPEN = "open"         # Not yet finished
+TASK_DONE = "done"         # Finished (human-judged now; oracle-derived later)
 
 
 @dataclass(frozen=True)
@@ -43,8 +54,9 @@ class Predicate:
     slug: str          # Predicate slug (the controlled vocabulary key)
     value_type: str    # ENUM | SEMVER | SLUG | FREETEXT
     volatility: str    # STABLE | CHANGES
-    ordering: str      # ORDER_NONE | ORDER_SEMVER
+    ordering: str      # ORDER_NONE | ORDER_SEMVER | ORDER_ENUM
     multivalued: bool = False  # A SET slot: many distinct values coexist, never conflict (e.g. aliases)
+    order_values: Optional[Tuple[str, ...]] = None  # For ORDER_ENUM: the lifecycle sequence (earliest -> latest)
 
 
 # The typed-predicate registry (controlled-with-free-reuse: novel predicates stay
@@ -58,6 +70,11 @@ PREDICATES = {
     # by the propose/confirm worklist (never auto-guessed); ingest resolves drifted
     # references through them so the dangling edge heals without editing the file.
     "aka": Predicate("aka", SLUG, STABLE, ORDER_NONE, multivalued=True),
+    # The work-item lifecycle: an ordered enum (`done` supersedes `open`), so a task
+    # marked done auto-supersedes its prior open state (healthy evolution, never a
+    # contradiction) — the version-bump pattern for a closed value-space.
+    TASK_STATE: Predicate(TASK_STATE, ENUM, CHANGES, ORDER_ENUM,
+                          order_values=(TASK_OPEN, TASK_DONE)),
 }
 
 
@@ -147,6 +164,12 @@ def ordering_supersedes(
         if a is None or b is None or a == b:
             return None
         return a > b
+    if p.ordering == ORDER_ENUM:
+        seq = p.order_values or ()
+        a, b = canonical_value(slug, new_value), canonical_value(slug, old_value)
+        if a not in seq or b not in seq or a == b:
+            return None  # off-sequence or equal value -> no auto supersession
+        return seq.index(a) > seq.index(b)
     return None
 
 

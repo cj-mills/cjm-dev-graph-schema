@@ -4,8 +4,9 @@ from cjm_dev_graph_schema import predicates as P
 
 
 def test_typed_predicate_registry():
-    assert set(P.PREDICATES) == {"rename-disposition", "version", "aka"}
+    assert set(P.PREDICATES) == {"rename-disposition", "version", "aka", "task_state"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
+    assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
 
 
@@ -59,6 +60,19 @@ def test_ordering_supersedes_semver():
     assert P.ordering_supersedes("version", "0.0.51", "0.0.51") is None   # same -> no supersede
     assert P.ordering_supersedes("version", "weird", "0.0.1") is None     # incomparable
     assert P.ordering_supersedes("rename-disposition", "keep", "rename:x") is None  # unordered
+
+
+def test_ordering_supersedes_task_state_enum():
+    # The work-item lifecycle is an ordered enum: `done` supersedes `open` (a task
+    # marked done auto-supersedes its prior open state, the version-bump pattern).
+    assert P.ordering_supersedes("task_state", "done", "open") is True   # closing wins
+    assert P.ordering_supersedes("task_state", "open", "done") is False  # reopen is born superseded
+    assert P.ordering_supersedes("task_state", "done", "done") is None   # same -> no supersede
+    assert P.ordering_supersedes("task_state", "DONE", "open") is True    # canonicalized (lowercased)
+    assert P.ordering_supersedes("task_state", "wip", "open") is None     # off-sequence -> no supersede
+    # task_state is ordered, so distinct values never read as a HARD contradiction.
+    assert not P.values_conflict("task_state", "open", "done")
+    assert not P.active_contradiction("task_state", ["open", "done"])
 
 
 def test_values_conflict_only_typed_unordered():

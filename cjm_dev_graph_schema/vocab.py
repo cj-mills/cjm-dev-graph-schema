@@ -73,6 +73,8 @@ class DevRelations:
     TAGGED = "TAGGED"              # Note -> Topic (a category/tag facet; the thematic-clustering edge)
     IN_SERIES = "IN_SERIES"        # Note -> Series it belongs to (membership; the order, when known, rides an `order` edge property)
     HAS_SECTION = "HAS_SECTION"    # Note -> a Section of its body (membership; the section hierarchy rides PART_OF, order rides the `order` prop)
+    GATED_BY = "GATED_BY"          # Work-item -> a prerequisite that must be `done` before it is READY (the readiness spine; a DEDICATED relation, not a reused DEPENDS_ON, for query clarity)
+    BLOCKED_BY = "BLOCKED_BY"      # Work-item -> a blocker — a reserved synonym of GATED_BY for the readiness computation (both edge types count as gates)
 
     # Overlay relations this domain reuses (owned by the layer; re-exposed for convenience).
     SUPERSEDES = OverlayRelations.SUPERSEDES
@@ -85,7 +87,7 @@ class DevRelations:
         return [cls.REFERENCES, cls.ABOUT, cls.ON_SLOT, cls.DECIDED_IN, cls.PRODUCED_IN,
                 cls.EVIDENCED_BY, cls.DEPENDS_ON, cls.LANDS_AT, cls.CONTRADICTS, cls.SUPPORTED_BY,
                 cls.DEFINES, cls.IMPORTS, cls.CALLS, cls.USES, cls.CONTAINS, cls.DOCUMENTS,
-                cls.TAGGED, cls.IN_SERIES, cls.HAS_SECTION,
+                cls.TAGGED, cls.IN_SERIES, cls.HAS_SECTION, cls.GATED_BY, cls.BLOCKED_BY,
                 cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 
