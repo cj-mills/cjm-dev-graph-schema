@@ -112,6 +112,15 @@ def decision_node_id(
     return derive_node_id("decision", statement_key)
 
 
+def check_node_id(
+    item_id: str,   # The work item the check gates closure of
+    text_key: str,  # The check's canonical text (its stable key)
+) -> str:  # Deterministic Check node id
+    """Check identity = (its work item, canonical text) — the same wording on two
+    items is two checks (a DoD is scoped to what it closes)."""
+    return derive_node_id("check", item_id, text_key)
+
+
 def session_node_id(
     key: str,  # Stable session key (e.g. the session timestamp/id)
 ) -> str:  # Deterministic Session node id

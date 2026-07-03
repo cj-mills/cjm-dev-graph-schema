@@ -23,11 +23,11 @@ from cjm_context_graph_layer.grammar import SpineRelations, make_edge
 from cjm_context_graph_primitives.locators import FileRef
 from cjm_context_graph_primitives.provenance import SourceRef
 
-from .identity import (assertion_node_id, cell_node_id, code_module_node_id,
-                       code_symbol_node_id, code_text_node_id, decision_node_id,
-                       entity_node_id, factslot_node_id, note_node_id,
-                       section_node_id, series_node_id, session_node_id,
-                       topic_node_id)
+from .identity import (assertion_node_id, cell_node_id, check_node_id,
+                       code_module_node_id, code_symbol_node_id, code_text_node_id,
+                       decision_node_id, entity_node_id, factslot_node_id,
+                       note_node_id, section_node_id, series_node_id,
+                       session_node_id, topic_node_id)
 from .predicates import canonical_value, is_typed
 from .vocab import DevNodeKinds, DevRelations
 
@@ -492,6 +492,45 @@ class DecisionNode:
     ) -> Dict[str, Any]:  # SUPERSEDES edge wire dict
         """A `SUPERSEDES` edge: this decision replaces a prior one."""
         return make_edge(self.id, superseded_id, DevRelations.SUPERSEDES)
+
+
+@dataclass
+class CheckNode:
+    """A definition-of-done check on a work item — a derivable gate, not prose.
+
+    DoD-as-graph-objects: a check's done-ness rides the same `task_state` /
+    supersession machinery as a work item's (assert `done` with `--evidence`
+    pointing at the proof; a regression is a supersession back to `open`). It
+    hangs off its item via a dedicated `CHECKS` edge — NOT `GATED_BY`, because a
+    DoD gates CLOSING the item, never starting it (checks are satisfied BY doing
+    the work). The readiness projector folds checks into derived `closable` /
+    `drift` classes; `done` itself stays human-authored (checks VERIFY the
+    judgment, they don't replace it — oracle-verified checks are the designed-for
+    phase-2 via `method`/`last_verified`)."""
+    item_id: str   # The work item this check gates closure of
+    text: str      # The check statement (canonicalized for identity)
+    actor: str = "agent:session"  # Who attached it
+
+    @property
+    def key(self) -> str:  # Canonical text key
+        """Whitespace-normalized check text (the identity input)."""
+        return " ".join(self.text.split())
+
+    @property
+    def id(self) -> str:  # Deterministic node id
+        """Deterministic node id from (item, canonical text)."""
+        return check_node_id(self.item_id, self.key)
+
+    def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
+        """Build the Check node wire dict (root_kind=asserted)."""
+        return {"id": self.id, "label": DevNodeKinds.CHECK,
+                "properties": {"text": self.text, "item_id": self.item_id,
+                               "actor": self.actor, "root_kind": "asserted"},
+                "sources": []}
+
+    def checks_edge(self) -> Dict[str, Any]:  # CHECKS edge wire dict
+        """The `CHECKS` edge tying the check to the work item whose closure it gates."""
+        return make_edge(self.id, self.item_id, DevRelations.CHECKS)
 
 
 @dataclass

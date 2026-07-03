@@ -38,6 +38,7 @@ class DevNodeKinds:
     TOPIC = "Topic"             # A category/tag facet (a thematic clustering subject; shared across notes via TAGGED)
     SERIES = "Series"           # An ordered collection/progression a note belongs to (shared via IN_SERIES)
     SECTION = "Section"         # One heading-delimited section of a Note's body (the navigable unit + anchor target); verbatim section text
+    CHECK = "Check"             # A definition-of-done check on a work item — its `task_state` derives closable/drift (it gates CLOSING the item, never starting it)
 
     @classmethod
     def all(cls) -> list:  # All dev-schema node labels
@@ -45,7 +46,7 @@ class DevNodeKinds:
         return [cls.NOTE, cls.DECISION, cls.FACT_SLOT, cls.ASSERTION, cls.EVIDENCE,
                 cls.THREAD, cls.SESSION, cls.PROCEDURE, cls.ENTITY,
                 cls.CODE_MODULE, cls.CODE_SYMBOL, cls.CELL, cls.CODE_TEXT,
-                cls.TOPIC, cls.SERIES, cls.SECTION]
+                cls.TOPIC, cls.SERIES, cls.SECTION, cls.CHECK]
 
 
 class DevRelations:
@@ -75,6 +76,7 @@ class DevRelations:
     HAS_SECTION = "HAS_SECTION"    # Note -> a Section of its body (membership; the section hierarchy rides PART_OF, order rides the `order` prop)
     GATED_BY = "GATED_BY"          # Work-item -> a prerequisite that must be `done` before it is READY (the readiness spine; a DEDICATED relation, not a reused DEPENDS_ON, for query clarity)
     BLOCKED_BY = "BLOCKED_BY"      # Work-item -> a blocker — a reserved synonym of GATED_BY for the readiness computation (both edge types count as gates)
+    CHECKS = "CHECKS"              # Check -> the work item whose CLOSURE it gates (the DoD side; dedicated like GATED_BY, which gates STARTING)
 
     # Overlay relations this domain reuses (owned by the layer; re-exposed for convenience).
     SUPERSEDES = OverlayRelations.SUPERSEDES
@@ -88,7 +90,7 @@ class DevRelations:
                 cls.EVIDENCED_BY, cls.DEPENDS_ON, cls.LANDS_AT, cls.CONTRADICTS, cls.SUPPORTED_BY,
                 cls.DEFINES, cls.IMPORTS, cls.CALLS, cls.USES, cls.CONTAINS, cls.DOCUMENTS,
                 cls.TAGGED, cls.IN_SERIES, cls.HAS_SECTION, cls.GATED_BY, cls.BLOCKED_BY,
-                cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
+                cls.CHECKS, cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 
 # The dev domain's structural ordering relations are the layer's spine relations
