@@ -20,7 +20,7 @@ feed the write-time check + the `contradictions` query.
 """
 
 from dataclasses import dataclass
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, Optional, Tuple
 
 # Value types.
 ENUM = "enum"          # A small closed-ish value space (e.g. keep | rename:<target>)

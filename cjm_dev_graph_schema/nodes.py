@@ -19,14 +19,13 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-from cjm_context_graph_layer.grammar import SpineRelations, make_edge
+from cjm_context_graph_layer.grammar import make_edge, SpineRelations
 from cjm_context_graph_primitives.locators import FileRef
 from cjm_context_graph_primitives.provenance import SourceRef
 
-from .identity import (assertion_node_id, cell_node_id, check_node_id,
-                       code_module_node_id, code_symbol_node_id, code_text_node_id,
-                       decision_node_id, entity_node_id, factslot_node_id,
-                       note_node_id, section_node_id, series_node_id,
+from .identity import (assertion_node_id, cell_node_id, check_node_id, code_module_node_id,
+                       code_symbol_node_id, code_text_node_id, decision_node_id, entity_node_id,
+                       factslot_node_id, note_node_id, section_node_id, series_node_id,
                        session_node_id, topic_node_id)
 from .predicates import canonical_value, is_typed
 from .vocab import DevNodeKinds, DevRelations
