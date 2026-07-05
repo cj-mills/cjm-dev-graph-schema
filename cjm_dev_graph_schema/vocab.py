@@ -77,6 +77,7 @@ class DevRelations:
     GATED_BY = "GATED_BY"          # Work-item -> a prerequisite that must be `done` before it is READY (the readiness spine; a DEDICATED relation, not a reused DEPENDS_ON, for query clarity)
     BLOCKED_BY = "BLOCKED_BY"      # Work-item -> a blocker — a reserved synonym of GATED_BY for the readiness computation (both edge types count as gates)
     CHECKS = "CHECKS"              # Check -> the work item whose CLOSURE it gates (the DoD side; dedicated like GATED_BY, which gates STARTING)
+    TESTS = "TESTS"                # A test CodeSymbol / test Cell -> the package CodeSymbol it exercises (the code<->test link; coverage-audit substrate)
 
     # Overlay relations this domain reuses (owned by the layer; re-exposed for convenience).
     SUPERSEDES = OverlayRelations.SUPERSEDES
@@ -90,7 +91,7 @@ class DevRelations:
                 cls.EVIDENCED_BY, cls.DEPENDS_ON, cls.LANDS_AT, cls.CONTRADICTS, cls.SUPPORTED_BY,
                 cls.DEFINES, cls.IMPORTS, cls.CALLS, cls.USES, cls.CONTAINS, cls.DOCUMENTS,
                 cls.TAGGED, cls.IN_SERIES, cls.HAS_SECTION, cls.GATED_BY, cls.BLOCKED_BY,
-                cls.CHECKS, cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
+                cls.CHECKS, cls.TESTS, cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 
 # The dev domain's structural ordering relations are the layer's spine relations

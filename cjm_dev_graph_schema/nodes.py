@@ -775,6 +775,7 @@ class CellNode:
     index: Optional[int] = None                  # Positional index in the notebook (content/order, not identity)
     path: str = ""                               # Notebook file path (provenance locator)
     directives: List[str] = field(default_factory=list)  # nbdev `#|` directives on the cell (e.g. "export", "hide")
+    calls: List[str] = field(default_factory=list)        # Bare names a NON-export code cell calls (the test-cell -> symbol TESTS substrate)
     title: str = ""                              # Markdown cells: first heading/line (relevance/title hook)
     description: str = ""                         # Markdown cells: a prose snippet (relevance hook)
 
@@ -798,6 +799,8 @@ class CellNode:
             props["index"] = self.index
         if self.directives:
             props["directives"] = list(self.directives)
+        if self.calls:
+            props["calls"] = list(self.calls)
         if self.title:
             props["title"] = self.title
         if self.description:
