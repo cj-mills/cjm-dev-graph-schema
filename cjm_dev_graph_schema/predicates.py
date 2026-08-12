@@ -75,21 +75,52 @@ PREDICATES = {
     # contradiction) — the version-bump pattern for a closed value-space.
     TASK_STATE: Predicate(TASK_STATE, ENUM, CHANGES, ORDER_ENUM,
                           order_values=(TASK_OPEN, TASK_DONE)),
+    # Priority/gating judgments on work items (axis F: the lead's sequencing prose
+    # becomes asserted, filterable facts). Deliberately UNORDERED: a priority
+    # change must explicitly supersede, so an un-superseded flip is a HARD
+    # contradiction instead of a silent newer-wins.
+    "priority": Predicate("priority", ENUM, CHANGES, ORDER_NONE),
+    # Model-artifact lifecycle for register rendering (current | candidate |
+    # retired). Unordered for the same reason: promotion/demotion is an explicit
+    # supersession, never automatic.
+    "model-status": Predicate("model-status", ENUM, CHANGES, ORDER_NONE),
+}
+
+# Predicate FAMILIES (prefix-typed): a slug with no exact entry resolves to its
+# family's value-space. `pin.<role>` (axis F): role-typed pins asserted FROM an
+# anchor — subject = the anchor, value = "<node-id> — <gloss>" (first token is the
+# pinned node id; the gloss carries the push-hook lesson: a terse COMPLETE
+# resident line, because a node's description buries the actionable point).
+# Multivalued: an anchor legitimately holds many pins per role — they coexist,
+# never conflict; retiring a pin is an explicit supersession.
+PREDICATE_FAMILIES = {
+    "pin.": Predicate("pin.*", FREETEXT, CHANGES, ORDER_NONE, multivalued=True),
 }
 
 
 def get_predicate(
     slug: str,  # Predicate slug
 ) -> Optional[Predicate]:  # The typed predicate, or None when untyped
-    """Look up a predicate's value-space; None = an untyped freetext predicate."""
-    return PREDICATES.get(slug)
+    """Look up a predicate's value-space; exact entry first, then a prefix FAMILY
+    (`pin.<role>` -> the `pin.` family); None = an untyped freetext predicate."""
+    p = PREDICATES.get(slug)
+    if p is not None:
+        return p
+    for prefix, family in PREDICATE_FAMILIES.items():
+        if slug.startswith(prefix) and len(slug) > len(prefix):
+            return family
+    return None
 
 
 def is_typed(
     slug: str,  # Predicate slug
 ) -> bool:  # True when the predicate carries a value-space
-    """Whether the predicate is in the typed registry."""
-    return slug in PREDICATES
+    """Whether the predicate carries a value-space (exact entry OR prefix family).
+
+    Family members MUST count as typed: `soft_conflict` fires on untyped slots
+    with disagreeing values, so a `pin.<role>` SET slot reading as untyped would
+    spam the worklist with every multi-pin anchor."""
+    return get_predicate(slug) is not None
 
 
 def is_ordered(

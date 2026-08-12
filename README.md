@@ -12,11 +12,6 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - **`cjm_dev_graph_schema.nodes`** — Typed node dataclasses for the dev schema (coarse + fine tier).
 - **`cjm_dev_graph_schema.predicates`** — Typed predicates + their value-space metadata (the dedup decidability layer).
 - **`cjm_dev_graph_schema.vocab`** — The reserved node-kind and edge-relation vocabulary for the dev/decision-provenance domain.
-- **`tests.test_code_nodes`** — Code source-type nodes: deterministic identity, wire shapes, and edges.
-- **`tests.test_entity`** — EntityNode: deterministic (sub-kind, key) identity, wire-dict, DEPENDS_ON edges.
-- **`tests.test_fine_nodes`** — Fine-tier nodes: deterministic identity, wire shapes, and alias resolution.
-- **`tests.test_nodes`** — Coarse-tier NoteNode: deterministic identity, wire-dict mapping, REFERENCES edges.
-- **`tests.test_predicates`** — Predicate value-space: canonicalization, ordering, and conflict decisions.
 
 ## API
 
@@ -64,10 +59,10 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `Predicate` _class_ — A typed predicate's value-space (the contradiction decidability metadata).
 - `active_contradiction` _function_ — Whether a slot's ACTIVE (non-superseded) values form a hard contradiction.
 - `canonical_value` _function_ — Canonicalize a value so equal claims collapse to one Assertion.
-- `get_predicate` _function_ — Look up a predicate's value-space; None = an untyped freetext predicate.
+- `get_predicate` _function_ — Look up a predicate's value-space; exact entry first, then a prefix FAMILY
 - `is_multivalued` _function_ — Whether the predicate is a SET slot (distinct values coexist, never conflict).
 - `is_ordered` _function_ — Whether the predicate's values have a "later supersedes earlier" ordering.
-- `is_typed` _function_ — Whether the predicate is in the typed registry.
+- `is_typed` _function_ — Whether the predicate carries a value-space (exact entry OR prefix family).
 - `ordering_supersedes` _function_ — For an ordered predicate, does `new_value` supersede `old_value`?
 - `soft_conflict` _function_ — Whether an UNTYPED slot's active values disagree (a worklist candidate).
 - `values_conflict` _function_ — Whether two values are a HARD contradiction under the value-space.
@@ -77,74 +72,7 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `DevNodeKinds` _class_ — Node labels of the dev/decision-provenance schema (the locked model).
 - `DevRelations` _class_ — Dev-domain edge relations (reserved up front).
 
-### `tests.test_code_nodes`
-
-- `test_cell_contains_next_documents_references_edges` _function_
-- `test_cell_identity_prefers_nbformat_id_else_index` _function_
-- `test_cell_wire_is_verbatim_and_typed` _function_
-- `test_codetext_region_identity_and_wire` _function_
-- `test_module_about_targets_repo_entity` _function_
-- `test_module_contains_edges_order_regions` _function_
-- `test_module_defines_and_imports_edges` _function_
-- `test_module_identity_is_repokey_path` _function_
-- `test_module_wire_carries_relevance_fields_and_source` _function_
-- `test_nested_defines` _function_
-- `test_nested_symbol_has_no_body_props` _function_
-- `test_symbol_identity_is_module_qualname` _function_
-- `test_symbol_uses_edges_superset_dedups_and_skips_self` _function_
-- `test_symbol_wire_and_call_edges` _function_
-- `test_symbol_without_content_hash_has_no_source` _function_
-- `test_top_level_symbol_carries_verbatim_body_and_order` _function_
-
-### `tests.test_entity`
-
-- `test_depends_on_edges_target_same_kind_ids` _function_
-- `test_id_from_kind_and_key` _function_
-- `test_same_key_different_kind_differs` _function_
-- `test_to_graph_node_shape` _function_
-
-### `tests.test_fine_nodes`
-
-- `test_assertion_identity_is_slot_value_actor` _function_
-- `test_assertion_wire_and_edges` _function_
-- `test_decision_and_session` _function_
-- `test_entity_aliases_resolve_rename_stable` _function_
-- `test_factslot_identity_is_subject_predicate` _function_
-
-### `tests.test_nodes`
-
-- `test_cross_post_alias_resolution` _function_
-- `test_cross_post_edges_anchor_resolves_to_section_id` _function_
-- `test_facets_stored_on_node_when_present` _function_
-- `test_id_changes_with_slug` _function_
-- `test_id_is_deterministic_from_slug` _function_
-- `test_no_references_no_edges` _function_
-- `test_optional_fields_omitted_when_empty` _function_
-- `test_reference_edges_target_linked_note_ids` _function_
-- `test_section_identity_and_anchor_resolution_by_construction` _function_
-- `test_section_node_shape_carries_verbatim_text` _function_
-- `test_section_structural_edges_membership_and_hierarchy` _function_
-- `test_series_edges_membership` _function_
-- `test_series_node_shape_and_identity` _function_
-- `test_tagged_edges_target_shared_topic_ids` _function_
-- `test_to_graph_node_shape` _function_
-- `test_topic_node_shape_and_identity` _function_
-
-### `tests.test_predicates`
-
-- `test_active_contradiction_and_soft_conflict` _function_
-- `test_aka_distinct_values_never_conflict` _function_
-- `test_aka_is_multivalued_slug_set` _function_
-- `test_canonical_value_enum_lowercases` _function_
-- `test_canonical_value_semver_strips_v_prefix` _function_
-- `test_canonical_value_untyped_preserves_case` _function_
-- `test_ordering_supersedes_semver` _function_
-- `test_ordering_supersedes_task_state_enum` _function_
-- `test_rename_disposition_is_unordered_enum` _function_
-- `test_typed_predicate_registry` _function_
-- `test_values_conflict_only_typed_unordered` _function_
-- `test_version_is_ordered_semver` _function_
-
 ## Dependencies
 
+**Depends on:** `cjm-context-graph-layer`, `cjm-context-graph-primitives`
 **Used by:** `cjm-context-graph-projection`, `cjm-markdown-decompose-core`, `cjm-notebook-decompose-core`, `cjm-python-decompose-core`

@@ -4,7 +4,8 @@ from cjm_dev_graph_schema import predicates as P
 
 
 def test_typed_predicate_registry():
-    assert set(P.PREDICATES) == {"rename-disposition", "version", "aka", "task_state"}
+    assert set(P.PREDICATES) == {"rename-disposition", "version", "aka", "task_state",
+                                 "priority", "model-status"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -93,3 +94,36 @@ def test_active_contradiction_and_soft_conflict():
     assert not P.active_contradiction("status", ["draft", "final"])
     assert P.soft_conflict("status", ["draft", "final"])
     assert not P.soft_conflict("rename-disposition", ["keep", "rename:x"])  # typed -> hard, not soft
+
+
+def test_pin_family_resolves_typed_multivalued_set():
+    # `pin.<role>` resolves through the prefix FAMILY: typed, freetext, SET slot.
+    p = P.get_predicate("pin.craft")
+    assert p is not None and p.slug == "pin.*"
+    assert p.value_type == P.FREETEXT and p.ordering == P.ORDER_NONE and p.multivalued
+    assert P.is_typed("pin.craft") and P.is_multivalued("pin.doctrine-head")
+    # Coexisting pins never conflict — hard or soft (soft would spam the worklist).
+    assert not P.values_conflict("pin.craft", "aaaa — one", "bbbb — two")
+    assert not P.active_contradiction("pin.craft", ["aaaa — one", "bbbb — two"])
+    assert not P.soft_conflict("pin.craft", ["aaaa — one", "bbbb — two"])
+    # Freetext canonicalization preserves the id+gloss value (strip only).
+    assert P.canonical_value("pin.craft", " abcd1234 — Read before authoring ") == "abcd1234 — Read before authoring"
+    # A bare family prefix is NOT a member; unrelated slugs stay untyped.
+    assert P.get_predicate("pin.") is None
+    assert P.get_predicate("pinned") is None and not P.is_typed("pinned")
+
+
+def test_priority_and_model_status_are_unordered_flip_guards():
+    # Axis F: priority/gating judgments as facts. UNORDERED on purpose — a change
+    # must explicitly supersede, so an un-superseded flip is a HARD contradiction
+    # (the 367eaaae lesson: no silent newer-wins on judgment predicates).
+    for slug in ("priority", "model-status"):
+        p = P.get_predicate(slug)
+        assert p.value_type == P.ENUM and p.ordering == P.ORDER_NONE and p.volatility == P.CHANGES
+        assert not P.is_ordered(slug) and not P.is_multivalued(slug)
+    assert P.ordering_supersedes("priority", "early", "demand-gated") is None
+    assert P.values_conflict("priority", "early", "demand-gated")
+    assert P.active_contradiction("priority", ["early", "demand-gated"])
+    assert not P.active_contradiction("priority", ["Early", "early"])  # enum canonicalizes case
+    assert P.values_conflict("model-status", "current", "candidate")
+    assert not P.active_contradiction("model-status", ["current"])
