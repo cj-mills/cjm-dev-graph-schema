@@ -39,6 +39,7 @@ class DevNodeKinds:
     SERIES = "Series"           # An ordered collection/progression a note belongs to (shared via IN_SERIES)
     SECTION = "Section"         # One heading-delimited section of a Note's body (the navigable unit + anchor target); verbatim section text
     CHECK = "Check"             # A definition-of-done check on a work item — its `task_state` derives closable/drift (it gates CLOSING the item, never starting it)
+    MESSAGE = "Message"         # A discourse event (scratchpad part / CC-transcript message / agent exchange): actor + timestamp + sequence position + capture provenance
 
     @classmethod
     def all(cls) -> list:  # All dev-schema node labels
@@ -46,7 +47,7 @@ class DevNodeKinds:
         return [cls.NOTE, cls.DECISION, cls.FACT_SLOT, cls.ASSERTION, cls.EVIDENCE,
                 cls.THREAD, cls.SESSION, cls.PROCEDURE, cls.ENTITY,
                 cls.CODE_MODULE, cls.CODE_SYMBOL, cls.CELL, cls.CODE_TEXT,
-                cls.TOPIC, cls.SERIES, cls.SECTION, cls.CHECK]
+                cls.TOPIC, cls.SERIES, cls.SECTION, cls.CHECK, cls.MESSAGE]
 
 
 class DevRelations:
@@ -78,6 +79,7 @@ class DevRelations:
     BLOCKED_BY = "BLOCKED_BY"      # Work-item -> a blocker — a reserved synonym of GATED_BY for the readiness computation (both edge types count as gates)
     CHECKS = "CHECKS"              # Check -> the work item whose CLOSURE it gates (the DoD side; dedicated like GATED_BY, which gates STARTING)
     TESTS = "TESTS"                # A test CodeSymbol / test Cell -> the package CodeSymbol it exercises (the code<->test link; coverage-audit substrate)
+    AMENDS = "AMENDS"              # An amendment/annotation Message -> the Message it amends (the scratchpad correction flow)
 
     # Overlay relations this domain reuses (owned by the layer; re-exposed for convenience).
     SUPERSEDES = OverlayRelations.SUPERSEDES
@@ -91,7 +93,7 @@ class DevRelations:
                 cls.EVIDENCED_BY, cls.DEPENDS_ON, cls.LANDS_AT, cls.CONTRADICTS, cls.SUPPORTED_BY,
                 cls.DEFINES, cls.IMPORTS, cls.CALLS, cls.USES, cls.CONTAINS, cls.DOCUMENTS,
                 cls.TAGGED, cls.IN_SERIES, cls.HAS_SECTION, cls.GATED_BY, cls.BLOCKED_BY,
-                cls.CHECKS, cls.TESTS, cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
+                cls.CHECKS, cls.TESTS, cls.AMENDS, cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 
 # The dev domain's structural ordering relations are the layer's spine relations

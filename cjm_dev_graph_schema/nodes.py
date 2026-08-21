@@ -25,8 +25,8 @@ from cjm_context_graph_primitives.provenance import SourceRef
 
 from .identity import (assertion_node_id, cell_node_id, check_node_id, code_module_node_id,
                        code_symbol_node_id, code_text_node_id, decision_node_id, entity_node_id,
-                       factslot_node_id, note_node_id, section_node_id, series_node_id,
-                       session_node_id, topic_node_id)
+                       factslot_node_id, message_node_id, note_node_id, section_node_id,
+                       series_node_id, session_node_id, topic_node_id)
 from .predicates import canonical_value, is_typed
 from .vocab import DevNodeKinds, DevRelations
 
@@ -552,6 +552,72 @@ class SessionNode:
         if self.title:
             props["title"] = self.title
         return {"id": self.id, "label": DevNodeKinds.SESSION, "properties": props, "sources": []}
+
+
+@dataclass
+class MessageNode:
+    """A discourse EVENT on a session spine (DEC 91c47b4a): one user-facing message.
+
+    The scratchpad-v2 unit — a pulled CC-transcript message (either side), an
+    editor-born composition part, an agent exchange, a future external-comms
+    utterance. One label across capture sources: variability rides `role`/`source`
+    properties and birth edges, never new labels (the Segment
+    one-label-many-sources pattern). Distinct from `NoteNode` (maintained standing
+    resource): a Message is essentially immutable once minted — corrections are
+    edit ops or `AMENDS` messages, and "active vs superseded branch" is DERIVED
+    from the chain, never stored (DEC 671e9b11 point 8). Anchoring reuses the
+    layer spine grammar: PART_OF the Session, NEXT succession along a chain,
+    STARTS_WITH from the Session to a chain head."""
+    source_uuid: str          # Capture-source record uuid (identity input; the CC record uuid, or a composer-minted uuid)
+    role: str                 # "user" | "assistant" (the speaking actor's side)
+    text: str                 # The message body — raw markdown source, the authoritative content
+    timestamp: str = ""       # ISO-8601 capture time as recorded by the harness
+    source: str = ""          # Capture source (e.g. "cc-transcript", "composer"); provenance facet, not identity
+    parent_source_uuid: str = ""  # The capture DAG's parentUuid (ground-truth ancestry, property only)
+    session_key: str = ""     # The session spine key this message belongs to (display/provenance; the edge carries structure)
+    properties: Dict[str, Any] = field(default_factory=dict)  # Extra properties (chain index, actor, ...)
+
+    @property
+    def id(self) -> str:  # Deterministic node id
+        """Deterministic node id (from the capture-source record uuid)."""
+        return message_node_id(self.source_uuid)
+
+    def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
+        """Build the Message node wire dict (root_kind=asserted)."""
+        props: Dict[str, Any] = {"source_uuid": self.source_uuid, "role": self.role,
+                                 "text": self.text, "root_kind": "asserted"}
+        if self.timestamp:
+            props["timestamp"] = self.timestamp
+        if self.source:
+            props["source"] = self.source
+        if self.parent_source_uuid:
+            props["parent_source_uuid"] = self.parent_source_uuid
+        if self.session_key:
+            props["session_key"] = self.session_key
+        props.update(self.properties)
+        return {"id": self.id, "label": DevNodeKinds.MESSAGE, "properties": props, "sources": []}
+
+    def part_of_edge(
+        self,
+        session_id: str,  # The Session spine node id this message hangs off
+    ) -> Dict[str, Any]:  # PART_OF edge wire dict
+        """Message -> Session containment (child -> parent, the spine grammar)."""
+        return make_edge(self.id, session_id, SpineRelations.PART_OF)
+
+    def next_edge_from(
+        self,
+        prev_message_id: str,  # The preceding Message node id on the chain
+    ) -> Dict[str, Any]:  # NEXT edge wire dict
+        """Chain succession: predecessor -> this message. A rewind fork is simply a
+        second NEXT edge out of one predecessor — append-only, active path derived."""
+        return make_edge(prev_message_id, self.id, SpineRelations.NEXT)
+
+    def starts_with_edge(
+        self,
+        session_id: str,  # The Session spine node id
+    ) -> Dict[str, Any]:  # STARTS_WITH edge wire dict
+        """Session -> chain head (parent -> first child, the spine grammar)."""
+        return make_edge(session_id, self.id, SpineRelations.STARTS_WITH)
 
 
 @dataclass

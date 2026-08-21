@@ -179,3 +179,17 @@ def code_text_node_id(
     derives off the module id so a region belongs to exactly one module. Mirrors
     `cell_node_id` (a notebook's verbatim substrate) for the plain-`.py` case."""
     return derive_node_id("code_text", module_id, region_key)
+
+
+def message_node_id(
+    source_uuid: str,  # The capture-source record uuid (a CC transcript record's `uuid`; a composer-minted uuid for editor-born parts)
+) -> str:  # Deterministic Message node id
+    """Message identity = its capture-source record uuid.
+
+    A Message is a discourse EVENT (DEC 91c47b4a): what makes it THE same node
+    across re-derivation is the identity of the event's capture record, never its
+    text — so a re-pull of the same transcript converges to verified no-ops
+    (idempotent by construction, DEC fc6a0cdc point 3) while a text correction
+    stays an ordinary property edit on the same node. Editor-born composition
+    parts mint their own source uuid at commit time and get the same guarantee."""
+    return derive_node_id("message", source_uuid)
