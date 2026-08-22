@@ -31,6 +31,7 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `decision_node_id` _function_ — Decision identity = its canonical statement (idempotent re-records).
 - `entity_node_id` _function_ — Entity identity = (sub-kind, stable key).
 - `factslot_node_id` _function_ — Fact-slot identity = (subject, predicate).
+- `message_node_id` _function_ — Message identity = its capture-source record uuid.
 - `note_node_id` _function_ — Note identity = its stable slug.
 - `section_node_id` _function_ — Section identity = (enclosing Note, heading anchor slug).
 - `series_node_id` _function_ — Series identity = its stable key.
@@ -48,6 +49,7 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `DecisionNode` _class_ — A decision/conclusion, with rationale recorded as edges, not prose.
 - `EntityNode` _class_ — A first-class subject: a repo/lib, stage, capability, person, or term.
 - `FactSlotNode` _class_ — A `(subject, predicate)` slot — the home for layered, supersede-able claims.
+- `MessageNode` _class_ — A discourse EVENT on a session spine (DEC 91c47b4a): one user-facing message.
 - `NoteNode` _class_ — The coarse-tier document node: one decomposed markdown/memory file.
 - `SectionNode` _class_ — One heading-delimited section of a Note's body — the navigable unit + anchor target.
 - `SeriesNode` _class_ — An ordered collection/progression a note belongs to (a Quarto series, …).
