@@ -64,16 +64,20 @@ def test_ordering_supersedes_semver():
 
 
 def test_ordering_supersedes_task_state_enum():
-    # The work-item lifecycle is an ordered enum: `done` supersedes `open` (a task
-    # marked done auto-supersedes its prior open state, the version-bump pattern).
+    # The work-item lifecycle is an ordered enum (`open` < `in_progress` < `done`):
+    # each forward step auto-supersedes the prior state, the version-bump pattern.
+    # (6a27c56f: `in_progress` was off-sequence and landed BESIDE `open`.)
     assert P.ordering_supersedes("task_state", "done", "open") is True   # closing wins
+    assert P.ordering_supersedes("task_state", "in_progress", "open") is True  # starting wins
+    assert P.ordering_supersedes("task_state", "done", "in_progress") is True  # finishing wins
     assert P.ordering_supersedes("task_state", "open", "done") is False  # reopen is born superseded
+    assert P.ordering_supersedes("task_state", "open", "in_progress") is False
     assert P.ordering_supersedes("task_state", "done", "done") is None   # same -> no supersede
     assert P.ordering_supersedes("task_state", "DONE", "open") is True    # canonicalized (lowercased)
     assert P.ordering_supersedes("task_state", "wip", "open") is None     # off-sequence -> no supersede
     # task_state is ordered, so distinct values never read as a HARD contradiction.
     assert not P.values_conflict("task_state", "open", "done")
-    assert not P.active_contradiction("task_state", ["open", "done"])
+    assert not P.active_contradiction("task_state", ["open", "in_progress", "done"])
 
 
 def test_values_conflict_only_typed_unordered():

@@ -38,13 +38,16 @@ ORDER_SEMVER = "semver"  # Semver ordering — the greater value supersedes the 
 ORDER_ENUM = "enum"      # A fixed lifecycle sequence — a later stage supersedes an earlier (see `order_values`)
 
 # Work-item lifecycle (the readiness spine's authored ground truth): a work-item's
-# completion state. `done` supersedes `open` — the healthy forward transition, so
-# re-asserting `done` auto-supersedes the prior `open` exactly as a version bump
-# does (never a contradiction). `ready`/`blocked` are NEVER asserted here — they
-# are DERIVED on read by the readiness projector (the never-hand-maintain-a-derived
-# -field rule: there is no write path for them).
+# completion state. `open` < `in_progress` < `done` — each forward step is the
+# healthy transition, so re-asserting a later state auto-supersedes the prior one
+# exactly as a version bump does (never a contradiction; finding 6a27c56f: the
+# off-sequence `in_progress` used to land BESIDE `open`, leaving two active).
+# `ready`/`blocked` are NEVER asserted here — they are DERIVED on read by the
+# readiness projector (the never-hand-maintain-a-derived-field rule: there is no
+# write path for them).
 TASK_STATE = "task_state"  # The work-item completion predicate
 TASK_OPEN = "open"         # Not yet finished
+TASK_IN_PROGRESS = "in_progress"  # Actively being worked (between open and done)
 TASK_DONE = "done"         # Finished (human-judged now; oracle-derived later)
 
 
@@ -70,11 +73,11 @@ PREDICATES = {
     # by the propose/confirm worklist (never auto-guessed); ingest resolves drifted
     # references through them so the dangling edge heals without editing the file.
     "aka": Predicate("aka", SLUG, STABLE, ORDER_NONE, multivalued=True),
-    # The work-item lifecycle: an ordered enum (`done` supersedes `open`), so a task
-    # marked done auto-supersedes its prior open state (healthy evolution, never a
-    # contradiction) — the version-bump pattern for a closed value-space.
+    # The work-item lifecycle: an ordered enum (`open` < `in_progress` < `done`), so
+    # a task moved forward auto-supersedes its prior state (healthy evolution, never
+    # a contradiction) — the version-bump pattern for a closed value-space.
     TASK_STATE: Predicate(TASK_STATE, ENUM, CHANGES, ORDER_ENUM,
-                          order_values=(TASK_OPEN, TASK_DONE)),
+                          order_values=(TASK_OPEN, TASK_IN_PROGRESS, TASK_DONE)),
     # Priority/gating judgments on work items (axis F: the lead's sequencing prose
     # becomes asserted, filterable facts). Deliberately UNORDERED: a priority
     # change must explicitly supersede, so an un-superseded flip is a HARD
