@@ -386,6 +386,7 @@ class AssertionNode:
     asserted_at: Optional[float] = None  # When claimed (None = now); content, never identity
     last_verified: Optional[float] = None  # When an oracle last re-verified it (oracle-backed slots)
     method: Optional[str] = None       # How it was derived (e.g. "version-oracle/v1")
+    subject_content_hash: Optional[str] = None  # The subject's content hash at assertion time (approval binds to content, design 40622922): joins the identity, so approving CHANGED content is a new claim
 
     @property
     def canonical(self) -> str:  # The value's canonical form (Assertion identity input)
@@ -395,7 +396,11 @@ class AssertionNode:
     @property
     def id(self) -> str:  # Deterministic node id
         """Deterministic node id (from (slot, canonical value, actor))."""
-        return assertion_node_id(self.slot_id, self.canonical, self.actor)
+        # Approval binds to content (design 40622922): a bound content hash joins the identity,
+        # so approving CHANGED content is a new claim (and supersedes the stale one at the
+        # verb), while re-asserting the same value on unchanged content stays a no-op.
+        bound = f"{self.canonical}@{self.subject_content_hash}" if self.subject_content_hash else self.canonical
+        return assertion_node_id(self.slot_id, bound, self.actor)
 
     def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
         """Build the Assertion node wire dict (root_kind=asserted; no file source)."""
@@ -415,6 +420,8 @@ class AssertionNode:
             props["last_verified"] = self.last_verified
         if self.method:
             props["method"] = self.method
+        if self.subject_content_hash:
+            props["subject_content_hash"] = self.subject_content_hash
         return {"id": self.id, "label": DevNodeKinds.ASSERTION, "properties": props, "sources": []}
 
     def on_slot_edge(self) -> Dict[str, Any]:  # ON_SLOT edge wire dict (assertion -> slot)

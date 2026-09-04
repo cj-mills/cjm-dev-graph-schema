@@ -67,3 +67,21 @@ def test_entity_aliases_resolve_rename_stable():
     assert resolve_subject_id(index, "cjm-substrate-torch-utils") == e.id
     assert resolve_subject_id(index, "CJM-Torch-Plugin-Utils") == e.id  # case-insensitive
     assert resolve_subject_id(index, "nope") is None
+
+
+def test_assertion_identity_binds_to_subject_content_hash():
+    # Design 40622922: an approval of CHANGED content is a different claim (new id, hash
+    # carried on the wire); the same value on the same content is the same claim; a
+    # hash-less assertion keeps the classic (slot, value, actor) identity untouched.
+    base = AssertionNode(slot_id="slot:x", value="published", actor="human", predicate="publish_state")
+    same = AssertionNode(slot_id="slot:x", value="published", actor="human", predicate="publish_state")
+    v1 = AssertionNode(slot_id="slot:x", value="published", actor="human", predicate="publish_state",
+                       subject_content_hash="h1")
+    v1b = AssertionNode(slot_id="slot:x", value="published", actor="human", predicate="publish_state",
+                        subject_content_hash="h1")
+    v2 = AssertionNode(slot_id="slot:x", value="published", actor="human", predicate="publish_state",
+                       subject_content_hash="h2")
+    assert base.id == same.id == assertion_node_id("slot:x", "published", "human")
+    assert v1.id == v1b.id and v1.id != base.id and v1.id != v2.id
+    assert v1.to_graph_node()["properties"]["subject_content_hash"] == "h1"
+    assert "subject_content_hash" not in base.to_graph_node()["properties"]
