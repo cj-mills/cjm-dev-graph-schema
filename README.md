@@ -62,6 +62,7 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `active_contradiction` _function_ — Whether a slot's ACTIVE (non-superseded) values form a hard contradiction.
 - `canonical_value` _function_ — Canonicalize a value so equal claims collapse to one Assertion.
 - `get_predicate` _function_ — Look up a predicate's value-space; exact entry first, then a prefix FAMILY
+- `is_approval` _function_ — Whether an assertion is approval-class (`APPROVAL_CLASS` — schema data, design 40622922).
 - `is_multivalued` _function_ — Whether the predicate is a SET slot (distinct values coexist, never conflict).
 - `is_ordered` _function_ — Whether the predicate's values have a "later supersedes earlier" ordering.
 - `is_typed` _function_ — Whether the predicate carries a value-space (exact entry OR prefix family).

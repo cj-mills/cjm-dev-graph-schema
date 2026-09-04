@@ -57,6 +57,18 @@ PUBLISH_DRAFT = "draft"          # Born; not reviewed
 PUBLISH_REVIEWED = "reviewed"    # A person reviewed it in staging
 PUBLISH_PUBLISHED = "published"  # Cleared for the outward emit
 
+# Review verdicts (design 40622922 (5), item 730e077e): a reviewer's considered "no update
+# needed" for ONE upstream change of an approved deliverable — asserted ON the deliverable,
+# value = the change KEY the review-frontier projector printed (`<upstream id prefix>@<content
+# hash prefix>`, or `@assertion:<id>` / `@edge:<relation>` for the non-content classes). It
+# silences exactly that change: the same upstream changing again carries a new key.
+REVIEW_VERDICT = "review_verdict"
+
+# The APPROVAL CLASS (the review-frontier's roots): predicate -> the values that count as an
+# approval (None = any value). A born `draft` is not an approval; `reviewed`/`published` are.
+# Schema DATA, so a future `approved`/`reviewed` predicate joins here, never in the projector.
+APPROVAL_CLASS = {PUBLISH_STATE: (PUBLISH_REVIEWED, PUBLISH_PUBLISHED)}
+
 
 @dataclass(frozen=True)
 class Predicate:
@@ -92,6 +104,10 @@ PREDICATES = {
     # website root first — item 6eba8815) is gated on a single active `published`.
     PUBLISH_STATE: Predicate(PUBLISH_STATE, ENUM, CHANGES, ORDER_ENUM,
                              order_values=(PUBLISH_DRAFT, PUBLISH_REVIEWED, PUBLISH_PUBLISHED)),
+    # Review verdicts (design 40622922 (5)): a SET of acknowledged change keys on an approved
+    # deliverable — many coexist and never conflict; retiring one is an explicit supersession.
+    # Freetext (the key is derived by the projector, never typed by hand from memory).
+    REVIEW_VERDICT: Predicate(REVIEW_VERDICT, FREETEXT, STABLE, ORDER_NONE, multivalued=True),
     # Priority/gating judgments on work items (axis F: the lead's sequencing prose
     # becomes asserted, filterable facts). Deliberately UNORDERED: a priority
     # change must explicitly supersede, so an un-superseded flip is a HARD
@@ -265,3 +281,19 @@ def soft_conflict(
         return False
     canon = {str(v).strip() for v in active_values}
     return len(canon) >= 2
+
+
+def is_approval(
+    slug: str,   # Predicate slug
+    value: str,  # The asserted value
+) -> bool:  # True when an active (slug, value) assertion is an APPROVAL the review frontier walks from
+    """Whether an assertion is approval-class (`APPROVAL_CLASS` — schema data, design 40622922).
+
+    `publish_state=draft` is a birth, not an approval; `reviewed`/`published` are. A
+    predicate listed with `None` counts at any value. Values compare canonically."""
+    allowed = APPROVAL_CLASS.get(slug, ())
+    if slug not in APPROVAL_CLASS:
+        return False
+    if allowed is None:
+        return True
+    return canonical_value(slug, value) in {canonical_value(slug, v) for v in allowed}

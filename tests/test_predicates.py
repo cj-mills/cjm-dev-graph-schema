@@ -5,7 +5,7 @@ from cjm_dev_graph_schema import predicates as P
 
 def test_typed_predicate_registry():
     assert set(P.PREDICATES) == {"rename-disposition", "version", "aka", "task_state",
-                                 "priority", "model-status", "publish_state"}
+                                 "priority", "model-status", "publish_state", "review_verdict"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -142,3 +142,15 @@ def test_publish_state_is_an_ordered_lifecycle():
     assert P.ordering_supersedes("publish_state", "published", "reviewed") is True
     assert P.ordering_supersedes("publish_state", "draft", "published") is False
     assert P.ordering_supersedes("publish_state", "retracted", "draft") is None
+
+
+def test_review_verdict_is_a_multivalued_set_and_approval_class_is_data():
+    # design 40622922 (5): acknowledgments coexist (never conflict, never supersede);
+    # the approval class is schema DATA — draft is a birth, reviewed/published approve.
+    p = P.get_predicate("review_verdict")
+    assert p.multivalued and p.ordering == P.ORDER_NONE and P.is_multivalued("review_verdict")
+    assert not P.active_contradiction("review_verdict", ["a@1", "b@2"])
+    assert P.APPROVAL_CLASS == {"publish_state": ("reviewed", "published")}
+    assert not P.is_approval("publish_state", "draft")
+    assert P.is_approval("publish_state", "reviewed") and P.is_approval("publish_state", "Published")
+    assert not P.is_approval("task_state", "done") and not P.is_approval("review_verdict", "x@y")
