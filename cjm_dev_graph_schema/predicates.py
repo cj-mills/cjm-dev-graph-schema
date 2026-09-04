@@ -50,6 +50,13 @@ TASK_OPEN = "open"         # Not yet finished
 TASK_IN_PROGRESS = "in_progress"  # Actively being worked (between open and done)
 TASK_DONE = "done"         # Finished (human-judged now; oracle-derived later)
 
+# Public-facing deliverable lifecycle (ruling 793f025e): asserted `draft` at birth,
+# promoted by a human, emitted outward only when `published`.
+PUBLISH_STATE = "publish_state"  # The deliverable publication predicate
+PUBLISH_DRAFT = "draft"          # Born; not reviewed
+PUBLISH_REVIEWED = "reviewed"    # A person reviewed it in staging
+PUBLISH_PUBLISHED = "published"  # Cleared for the outward emit
+
 
 @dataclass(frozen=True)
 class Predicate:
@@ -78,6 +85,13 @@ PREDICATES = {
     # a contradiction) — the version-bump pattern for a closed value-space.
     TASK_STATE: Predicate(TASK_STATE, ENUM, CHANGES, ORDER_ENUM,
                           order_values=(TASK_OPEN, TASK_IN_PROGRESS, TASK_DONE)),
+    # Public-facing deliverable lifecycle (user ruling 793f025e, 2026-09-03: DRAFT AT
+    # BIRTH): every non-code deliverable born on-graph is asserted `draft` in the same
+    # invocation that mints it; `draft` < `reviewed` < `published` is an ordered enum so
+    # a human promotion auto-supersedes the prior stage, and every outward emit (the
+    # website root first — item 6eba8815) is gated on a single active `published`.
+    PUBLISH_STATE: Predicate(PUBLISH_STATE, ENUM, CHANGES, ORDER_ENUM,
+                             order_values=(PUBLISH_DRAFT, PUBLISH_REVIEWED, PUBLISH_PUBLISHED)),
     # Priority/gating judgments on work items (axis F: the lead's sequencing prose
     # becomes asserted, filterable facts). Deliberately UNORDERED: a priority
     # change must explicitly supersede, so an un-superseded flip is a HARD

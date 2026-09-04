@@ -5,7 +5,7 @@ from cjm_dev_graph_schema import predicates as P
 
 def test_typed_predicate_registry():
     assert set(P.PREDICATES) == {"rename-disposition", "version", "aka", "task_state",
-                                 "priority", "model-status"}
+                                 "priority", "model-status", "publish_state"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -131,3 +131,14 @@ def test_priority_and_model_status_are_unordered_flip_guards():
     assert not P.active_contradiction("priority", ["Early", "early"])  # enum canonicalizes case
     assert P.values_conflict("model-status", "current", "candidate")
     assert not P.active_contradiction("model-status", ["current"])
+
+
+def test_publish_state_is_an_ordered_lifecycle():
+    # Ruling 793f025e: draft < reviewed < published — a human promotion auto-supersedes the
+    # prior stage (never a contradiction); a demotion is born superseded; off-sequence = None.
+    assert P.is_typed("publish_state") and P.is_ordered("publish_state")
+    assert P.get_predicate("publish_state").order_values == ("draft", "reviewed", "published")
+    assert P.ordering_supersedes("publish_state", "reviewed", "draft") is True
+    assert P.ordering_supersedes("publish_state", "published", "reviewed") is True
+    assert P.ordering_supersedes("publish_state", "draft", "published") is False
+    assert P.ordering_supersedes("publish_state", "retracted", "draft") is None
