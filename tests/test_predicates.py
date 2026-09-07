@@ -5,7 +5,8 @@ from cjm_dev_graph_schema import predicates as P
 
 def test_typed_predicate_registry():
     assert set(P.PREDICATES) == {"rename-disposition", "version", "aka", "task_state",
-                                 "priority", "model-status", "publish_state", "review_verdict"}
+                                 "priority", "model-status", "publish_state", "review_verdict",
+                                 "derived_from"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -154,3 +155,16 @@ def test_review_verdict_is_a_multivalued_set_and_approval_class_is_data():
     assert not P.is_approval("publish_state", "draft")
     assert P.is_approval("publish_state", "reviewed") and P.is_approval("publish_state", "Published")
     assert not P.is_approval("task_state", "done") and not P.is_approval("review_verdict", "x@y")
+
+
+def test_derived_from_is_multivalued_freetext_set():
+    # Finding 0154f5e4 interim: a born deliverable names MANY foreign nodes it drew on
+    # (`<graph-key>:<node-id>`) -> a set slot: distinct values coexist, never conflict,
+    # never order.
+    p = P.get_predicate("derived_from")
+    assert p.value_type == P.FREETEXT and p.ordering == P.ORDER_NONE and p.multivalued
+    assert P.is_multivalued("derived_from") and not P.is_ordered("derived_from")
+    assert not P.values_conflict("derived_from", "transcription:aaa", "transcription:bbb")
+    assert not P.active_contradiction("derived_from", ["transcription:aaa", "transcription:bbb"])
+    assert not P.soft_conflict("derived_from", ["transcription:aaa", "transcription:bbb"])
+    assert P.canonical_value("derived_from", " transcription:AAA ") == "transcription:AAA"  # freetext: case kept

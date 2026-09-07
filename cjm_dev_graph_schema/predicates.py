@@ -108,6 +108,14 @@ PREDICATES = {
     # deliverable — many coexist and never conflict; retiring one is an explicit supersession.
     # Freetext (the key is derived by the projector, never typed by hand from memory).
     REVIEW_VERDICT: Predicate(REVIEW_VERDICT, FREETEXT, STABLE, ORDER_NONE, multivalued=True),
+    # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
+    # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
+    # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives
+    # from many strata / segments / sources; values coexist, never conflict; retiring one
+    # is an explicit supersession). Replayable and predicate-queryable, so provenance across
+    # a db boundary is on-graph rather than prose; converts mechanically to the edge form
+    # once it exists (same subject, same foreign ids).
+    "derived_from": Predicate("derived_from", FREETEXT, STABLE, ORDER_NONE, multivalued=True),
     # Priority/gating judgments on work items (axis F: the lead's sequencing prose
     # becomes asserted, filterable facts). Deliberately UNORDERED: a priority
     # change must explicitly supersede, so an un-superseded flip is a HARD
