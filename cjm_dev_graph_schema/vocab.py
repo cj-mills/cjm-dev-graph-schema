@@ -41,6 +41,8 @@ class DevNodeKinds:
     CHECK = "Check"             # A definition-of-done check on a work item — its `task_state` derives closable/drift (it gates CLOSING the item, never starting it)
     MESSAGE = "Message"         # A discourse event (scratchpad part / CC-transcript message / agent exchange): actor + timestamp + sequence position + capture provenance
     REFERENCE = "Reference"     # A local stand-in for a node in a SIBLING graph (graph key + foreign id + the content hash last observed there) — the cross-graph reference seam (0154f5e4); edges land on it, the foreign graph is never written
+    POINT = "Point"             # A typed deliverable's SUBSTANCE atom (ruling a7262fe7): telegraphic text of one kind, derived from a named segment run; a Note's Sections are RENDERED from its Points, never authored
+    DELIVERABLE_TYPE = "DeliverableType"  # A deliverable type's profile as graph DATA: information policy (a stratum query), presentation policy (renderings + kinds), production procedure; a Note binds to one via the `deliverable_type` fact
 
     @classmethod
     def all(cls) -> list:  # All dev-schema node labels
@@ -48,7 +50,8 @@ class DevNodeKinds:
         return [cls.NOTE, cls.DECISION, cls.FACT_SLOT, cls.ASSERTION, cls.EVIDENCE,
                 cls.THREAD, cls.SESSION, cls.PROCEDURE, cls.ENTITY,
                 cls.CODE_MODULE, cls.CODE_SYMBOL, cls.CELL, cls.CODE_TEXT,
-                cls.TOPIC, cls.SERIES, cls.SECTION, cls.CHECK, cls.MESSAGE, cls.REFERENCE]
+                cls.TOPIC, cls.SERIES, cls.SECTION, cls.CHECK, cls.MESSAGE, cls.REFERENCE,
+                cls.POINT, cls.DELIVERABLE_TYPE]
 
 
 class DevRelations:
@@ -81,6 +84,7 @@ class DevRelations:
     CHECKS = "CHECKS"              # Check -> the work item whose CLOSURE it gates (the DoD side; dedicated like GATED_BY, which gates STARTING)
     TESTS = "TESTS"                # A test CodeSymbol / test Cell -> the package CodeSymbol it exercises (the code<->test link; coverage-audit substrate)
     AMENDS = "AMENDS"              # An amendment/annotation Message -> the Message it amends (the scratchpad correction flow)
+    HAS_POINT = "HAS_POINT"        # Note -> a Point of its substance (membership; source order rides the Point's `ordinal`/`start_time`, the Sections are rendered from the Points — ruling a7262fe7)
 
     # Overlay relations this domain reuses (owned by the layer; re-exposed for convenience).
     SUPERSEDES = OverlayRelations.SUPERSEDES
@@ -94,7 +98,8 @@ class DevRelations:
                 cls.EVIDENCED_BY, cls.DEPENDS_ON, cls.LANDS_AT, cls.CONTRADICTS, cls.SUPPORTED_BY,
                 cls.DEFINES, cls.IMPORTS, cls.CALLS, cls.USES, cls.CONTAINS, cls.DOCUMENTS,
                 cls.TAGGED, cls.IN_SERIES, cls.HAS_SECTION, cls.GATED_BY, cls.BLOCKED_BY,
-                cls.CHECKS, cls.TESTS, cls.AMENDS, cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
+                cls.CHECKS, cls.TESTS, cls.AMENDS, cls.HAS_POINT,
+                cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 
 # The dev domain's structural ordering relations are the layer's spine relations

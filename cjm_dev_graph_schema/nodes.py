@@ -26,9 +26,10 @@ from cjm_context_graph_primitives.locators import FileRef
 from cjm_context_graph_primitives.provenance import SourceRef
 
 from .identity import (assertion_node_id, cell_node_id, check_node_id, code_module_node_id,
-                       code_symbol_node_id, code_text_node_id, decision_node_id, entity_node_id,
-                       factslot_node_id, message_node_id, note_node_id, reference_node_id,
-                       section_node_id, series_node_id, session_node_id, topic_node_id)
+                       code_symbol_node_id, code_text_node_id, decision_node_id,
+                       deliverable_type_node_id, entity_node_id, factslot_node_id, message_node_id,
+                       note_node_id, point_node_id, reference_node_id, section_node_id,
+                       series_node_id, session_node_id, topic_node_id)
 from .predicates import canonical_value, is_typed
 from .vocab import DevNodeKinds, DevRelations
 
@@ -1085,3 +1086,155 @@ class ReferenceNode:
         if self.observed_at is not None:
             props["observed_at"] = self.observed_at
         return {"id": self.id, "label": DevNodeKinds.REFERENCE, "properties": props, "sources": []}
+
+
+# The pure-notes type's STARTER point-kind slate (ruling a7262fe7 (2)): an OPEN vocabulary
+# — a proposer may mint a new kebab-case kind, it lands as data on the Point — with glosses
+# rendered into every notes pack so a cold proposer reads the same kind semantics the human
+# confirms against (the RECOMMENDED_STRATUM_CLASSES doctrine). `quotation` is the ONLY kind
+# carrying verbatim text; `comparison` always renders as a table, `step`/`sequence` always as
+# ordered lists; `citation` is what the SOURCE names, distinct from a research-mark.
+RECOMMENDED_POINT_KINDS = (
+    "claim",       # a statement the source makes, in the source's framing
+    "definition",  # a term the source defines or characterizes
+    "step",        # one item of a procedure the source lays out (consecutive steps render as one ordered list)
+    "example",     # a concrete instance the source gives for a point it makes
+    "quotation",   # someone's words quoted verbatim by the source (carries the exact text + attribution)
+    "datum",       # a number, measurement, date or count the source states
+    "comparison",  # entities compared on named properties (renders as a table; `data.columns` + `data.rows`)
+    "sequence",    # an ordered / dated series the source recounts (renders as an ordered list; `data.items`)
+    "citation",    # an external work, person or source the source itself names
+)
+
+POINT_KIND_GLOSSES: Dict[str, str] = {
+    "claim": "a statement the source makes, kept in the source's own framing — telegraphic, no interpretation",
+    "definition": "a term the source defines or characterizes; lead = the term",
+    "step": "one item of a procedure the source lays out; consecutive steps render as ONE ordered list",
+    "example": "a concrete instance the source gives for a point it makes",
+    "quotation": "someone's words quoted verbatim by the source — the exact words, with who is quoted (`attribution`)",
+    "datum": "a number, measurement, date or count the source states; keep the unit and the source's precision",
+    "comparison": "two or more things compared on named properties — give `data.columns` and `data.rows`; renders as a table",
+    "sequence": "an ordered or dated series the source recounts — give `data.items` as [{when, what}]; renders as an ordered list",
+    "citation": "an external work, person, or source the SOURCE names (what it cites), not what a research pass would follow",
+}
+
+
+@dataclass
+class PointNode:
+    """A typed deliverable's SUBSTANCE atom (ruling a7262fe7): the smallest statement
+    attributable to the source without interpretation, in the source's own framing.
+
+    The structural inversion behind the pure-notes type: a deliverable Note keeps its
+    publish state and authored frontmatter, but its body Sections are RENDERED from Points
+    at emit time, never authored. A Point carries telegraphic `text` of one `kind` (open
+    vocabulary; `RECOMMENDED_POINT_KINDS` is the starter slate), the segment run it derives
+    from (`segment_ids` + source times, copied at accept so ordering and timestamps need no
+    sibling read), the heading it falls under (the read-aloud section header the apparatus
+    strata name, captured from the pack), and an optional `lead` term (the only emphasis a
+    rendering applies). Fidelity is by construction — a Point exists only as derived, and
+    its DERIVED_FROM edges land on cross-graph References to the segments. Identity =
+    (deliverable Note, opaque key) so re-render / re-order / text edits keep the node."""
+    note_id: str                                 # The deliverable Note this point belongs to; identity input
+    key: str                                     # Opaque stable key (the accepted proposal id); identity input
+    kind: str                                    # Point kind (open vocabulary; starter slate RECOMMENDED_POINT_KINDS)
+    text: str                                    # The telegraphic statement (verbatim for `quotation`)
+    ordinal: int = 0                             # Source-order position (pack position at accept; content, not identity)
+    lead: str = ""                               # Optional lead term (rendered bold — the one permitted emphasis)
+    heading: str = ""                            # The source section header the point falls under ("" = the unit's top)
+    heading_index: int = 0                       # Order of that header within the unit (0 = before any header)
+    segment_ids: List[str] = field(default_factory=list)  # The sibling-graph Segment ids the point derives from (spine order)
+    start_time: Optional[float] = None           # Run start (source seconds), copied from the segments
+    end_time: Optional[float] = None             # Run end (source seconds)
+    attribution: str = ""                        # `quotation`: who is quoted (as the source names them)
+    data: Dict[str, Any] = field(default_factory=dict)  # Kind-specific structure (`comparison`: columns/rows; `sequence`: items)
+    unit: Dict[str, Any] = field(default_factory=dict)  # The source structure unit address ({source_id, unit, title, part, chapter…})
+    actor: str = "agent:session"                 # Who proposed the text (the accept records the confirming actor on the op)
+
+    @property
+    def id(self) -> str:  # Deterministic node id
+        """Deterministic node id (from (note, key))."""
+        return point_node_id(self.note_id, self.key)
+
+    def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
+        """Build the Point node wire dict (root_kind=derived — substance derived from segments)."""
+        props: Dict[str, Any] = {
+            "name": (self.lead or self.text)[:80],
+            "title": f"{self.kind}: {(self.lead + ' — ' if self.lead else '') + self.text}"[:160],
+            "note_id": self.note_id,
+            "key": self.key,
+            "kind": self.kind,
+            "text": self.text,
+            "ordinal": int(self.ordinal),
+            "heading": self.heading,
+            "heading_index": int(self.heading_index),
+            "segment_ids": list(self.segment_ids),
+            "actor": self.actor,
+            "root_kind": "derived",
+        }
+        if self.lead:
+            props["lead"] = self.lead
+        if self.start_time is not None:
+            props["start_time"] = float(self.start_time)
+        if self.end_time is not None:
+            props["end_time"] = float(self.end_time)
+        if self.attribution:
+            props["attribution"] = self.attribution
+        if self.data:
+            props["data"] = dict(self.data)
+        if self.unit:
+            props["unit"] = dict(self.unit)
+        return {"id": self.id, "label": DevNodeKinds.POINT, "properties": props, "sources": []}
+
+    def has_point_edge(self) -> Dict[str, Any]:  # HAS_POINT edge wire dict (note -> point)
+        """The membership edge from the deliverable Note (order rides the Point, not the edge)."""
+        return make_edge(self.note_id, self.id, DevRelations.HAS_POINT)
+
+    def derived_from_edges(
+        self,
+        reference_ids: List[str],  # The local Reference stand-ins for the point's segments (cross-graph seam)
+    ) -> List[Dict[str, Any]]:  # DERIVED_FROM edge wire dicts, spine order on the `order` property
+        """One `DERIVED_FROM` edge per segment Reference — the provenance the review frontier follows."""
+        return [make_edge(self.id, rid, DevRelations.DERIVED_FROM, properties={"order": i})
+                for i, rid in enumerate(reference_ids)]
+
+
+@dataclass
+class DeliverableTypeNode:
+    """A deliverable TYPE's profile as graph DATA (ruling a7262fe7 (1)) — the display-rule
+    doctrine applied to deliverables: one node per type, upserted by its slug.
+
+    Three policies ride it. `information_policy` is a STRATUM QUERY over the source
+    (which segments a deliverable of this type draws on: unclassified + the named
+    strata; which strata give structure; which exclude a segment; which classes are
+    never carried). `presentation_policy` names the renderings and their rules plus the
+    kind slate (kind -> gloss). `production_procedure` is the lane's ordered steps. A
+    deliverable Note binds to the type by a `deliverable_type` fact (supersedable), so
+    the lane's verbs and the review frontier read the rules off the graph, never code."""
+    key: str                                                 # Durable slug (e.g. "pure-notes"); identity input
+    title: str = ""                                          # Display title
+    description: str = ""                                    # One line on what the type is for
+    information_policy: Dict[str, Any] = field(default_factory=dict)  # {include_unclassified, include_strata, structure_strata, exclude_strata, never_carry}
+    presentation_policy: Dict[str, Any] = field(default_factory=dict)  # {renderings: {name: rules}, kinds: {kind: gloss}, emphasis, section_length_target}
+    production_procedure: List[str] = field(default_factory=list)      # The lane's ordered steps (prose, one per step)
+    actor: str = "agent:session"                             # Who minted / last updated the profile
+
+    @property
+    def id(self) -> str:  # Deterministic node id
+        """Deterministic node id (from the slug)."""
+        return deliverable_type_node_id(self.key)
+
+    def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
+        """Build the DeliverableType node wire dict (root_kind=asserted; a declared profile)."""
+        props: Dict[str, Any] = {
+            "name": self.key,
+            "key": self.key,
+            "title": self.title or self.key,
+            "description": self.description,
+            "information_policy": dict(self.information_policy),
+            "presentation_policy": dict(self.presentation_policy),
+            "production_procedure": list(self.production_procedure),
+            "actor": self.actor,
+            "root_kind": "asserted",
+        }
+        return {"id": self.id, "label": DevNodeKinds.DELIVERABLE_TYPE, "properties": props,
+                "sources": []}

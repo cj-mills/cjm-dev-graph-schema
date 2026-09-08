@@ -208,3 +208,27 @@ def reference_node_id(
     the same foreign node referenced from two deliverables converges on one node,
     and a rebuild reproduces it from the journal without opening the sibling graph."""
     return derive_node_id("reference", graph_key, foreign_id)
+
+
+def point_node_id(
+    note_id: str,  # The deliverable Note the point belongs to
+    key: str,      # The point's stable key: the accepted proposal's id, or a uuid minted at accept
+) -> str:  # Deterministic Point node id
+    """Point identity = (deliverable, point key) — never its text, kind, or position.
+
+    A Point is a typed deliverable's substance atom (ruling a7262fe7): its identity must
+    survive re-rendering, re-ordering and a text edit, so it derives from the opaque key
+    the accept op minted (the proposal id it came from) and the Note it belongs to — not
+    from a Section (whose identity is the rendered document's) and not from the segment
+    run (two points may legitimately derive from the same run). Replay carries the key,
+    so a rebuild lands the same id."""
+    return derive_node_id("point", note_id, key)
+
+
+def deliverable_type_node_id(
+    key: str,  # The type's durable slug (e.g. "pure-notes")
+) -> str:  # Deterministic DeliverableType node id
+    """Deliverable-type identity = its slug, so re-minting the profile UPSERTS one node
+    (last journaled op wins on replay, the display-rule pattern) and a Note's
+    `deliverable_type` fact resolves to it by name."""
+    return derive_node_id("deliverable_type", key)

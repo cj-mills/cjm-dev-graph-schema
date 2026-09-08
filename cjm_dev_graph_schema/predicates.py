@@ -64,6 +64,11 @@ PUBLISH_PUBLISHED = "published"  # Cleared for the outward emit
 # silences exactly that change: the same upstream changing again carries a new key.
 REVIEW_VERDICT = "review_verdict"
 
+# A deliverable's TYPE (ruling a7262fe7): the slug of the DeliverableType node whose
+# policies govern it (`pure-notes` first). STABLE + unordered: changing a deliverable's
+# type is an explicit supersession, never a silent newer-wins.
+DELIVERABLE_TYPE = "deliverable_type"
+
 # The APPROVAL CLASS (the review-frontier's roots): predicate -> the values that count as an
 # approval (None = any value). A born `draft` is not an approval; `reviewed`/`published` are.
 # Schema DATA, so a future `approved`/`reviewed` predicate joins here, never in the projector.
@@ -108,6 +113,10 @@ PREDICATES = {
     # deliverable — many coexist and never conflict; retiring one is an explicit supersession.
     # Freetext (the key is derived by the projector, never typed by hand from memory).
     REVIEW_VERDICT: Predicate(REVIEW_VERDICT, FREETEXT, STABLE, ORDER_NONE, multivalued=True),
+    # The deliverable-type binding (ruling a7262fe7): a slug naming the DeliverableType node.
+    # Typed so a disagreement is a HARD contradiction (one deliverable, one type) and a
+    # re-type is an explicit supersession.
+    DELIVERABLE_TYPE: Predicate(DELIVERABLE_TYPE, SLUG, STABLE, ORDER_NONE),
     # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
     # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
     # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives

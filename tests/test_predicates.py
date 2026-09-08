@@ -6,7 +6,7 @@ from cjm_dev_graph_schema import predicates as P
 def test_typed_predicate_registry():
     assert set(P.PREDICATES) == {"rename-disposition", "version", "aka", "task_state",
                                  "priority", "model-status", "publish_state", "review_verdict",
-                                 "derived_from"}
+                                 "derived_from", "deliverable_type"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
