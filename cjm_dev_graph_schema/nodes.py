@@ -1131,9 +1131,12 @@ class PointNode:
     from (`segment_ids` + source times, copied at accept so ordering and timestamps need no
     sibling read), the heading it falls under (the read-aloud section header the apparatus
     strata name, captured from the pack), and an optional `lead` term (the only emphasis a
-    rendering applies). Fidelity is by construction — a Point exists only as derived, and
-    its DERIVED_FROM edges land on cross-graph References to the segments. Identity =
-    (deliverable Note, opaque key) so re-render / re-order / text edits keep the node."""
+    rendering applies), and — ruling e1fd4d64 (H) — an optional `parent_key` naming the
+    Point it elaborates (ONE level: an `ELABORATES` edge child -> parent; the renderer nests
+    the child as a sub-item; a parent never carries a parent of its own). Fidelity is by
+    construction — a Point exists only as derived, and its DERIVED_FROM edges land on
+    cross-graph References to the segments. Identity = (deliverable Note, opaque key) so
+    re-render / re-order / re-parent / text edits keep the node."""
     note_id: str                                 # The deliverable Note this point belongs to; identity input
     key: str                                     # Opaque stable key (the accepted proposal id); identity input
     kind: str                                    # Point kind (open vocabulary; starter slate RECOMMENDED_POINT_KINDS)
@@ -1148,12 +1151,18 @@ class PointNode:
     attribution: str = ""                        # `quotation`: who is quoted (as the source names them)
     data: Dict[str, Any] = field(default_factory=dict)  # Kind-specific structure (`comparison`: columns/rows; `sequence`: items)
     unit: Dict[str, Any] = field(default_factory=dict)  # The source structure unit address ({source_id, unit, title, part, chapter…})
+    parent_key: str = ""                         # The key of the Point this one elaborates ("" = top level; one level only)
     actor: str = "agent:session"                 # Who proposed the text (the accept records the confirming actor on the op)
 
     @property
     def id(self) -> str:  # Deterministic node id
         """Deterministic node id (from (note, key))."""
         return point_node_id(self.note_id, self.key)
+
+    @property
+    def parent_id(self) -> str:  # The parent Point's deterministic id ("" when top level)
+        """The parent Point's node id — same deliverable, the parent's key."""
+        return point_node_id(self.note_id, self.parent_key) if self.parent_key else ""
 
     def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
         """Build the Point node wire dict (root_kind=derived — substance derived from segments)."""
@@ -1183,11 +1192,19 @@ class PointNode:
             props["data"] = dict(self.data)
         if self.unit:
             props["unit"] = dict(self.unit)
+        if self.parent_key:
+            props["parent_key"] = self.parent_key
         return {"id": self.id, "label": DevNodeKinds.POINT, "properties": props, "sources": []}
 
     def has_point_edge(self) -> Dict[str, Any]:  # HAS_POINT edge wire dict (note -> point)
         """The membership edge from the deliverable Note (order rides the Point, not the edge)."""
         return make_edge(self.note_id, self.id, DevRelations.HAS_POINT)
+
+    def elaborates_edge(self) -> Optional[Dict[str, Any]]:  # ELABORATES edge wire dict (child -> parent), None at top level
+        """The one-level nesting edge to the parent Point (the renderer's sub-item structure)."""
+        if not self.parent_key:
+            return None
+        return make_edge(self.id, self.parent_id, DevRelations.ELABORATES)
 
     def derived_from_edges(
         self,

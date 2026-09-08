@@ -85,6 +85,7 @@ class DevRelations:
     TESTS = "TESTS"                # A test CodeSymbol / test Cell -> the package CodeSymbol it exercises (the code<->test link; coverage-audit substrate)
     AMENDS = "AMENDS"              # An amendment/annotation Message -> the Message it amends (the scratchpad correction flow)
     HAS_POINT = "HAS_POINT"        # Note -> a Point of its substance (membership; source order rides the Point's `ordinal`/`start_time`, the Sections are rendered from the Points — ruling a7262fe7)
+    ELABORATES = "ELABORATES"      # Point -> the Point it elaborates (ONE level of nesting — ruling e1fd4d64 (H): a child renders as a sub-item under its parent; a parent never has a parent)
 
     # Overlay relations this domain reuses (owned by the layer; re-exposed for convenience).
     SUPERSEDES = OverlayRelations.SUPERSEDES
@@ -98,7 +99,7 @@ class DevRelations:
                 cls.EVIDENCED_BY, cls.DEPENDS_ON, cls.LANDS_AT, cls.CONTRADICTS, cls.SUPPORTED_BY,
                 cls.DEFINES, cls.IMPORTS, cls.CALLS, cls.USES, cls.CONTAINS, cls.DOCUMENTS,
                 cls.TAGGED, cls.IN_SERIES, cls.HAS_SECTION, cls.GATED_BY, cls.BLOCKED_BY,
-                cls.CHECKS, cls.TESTS, cls.AMENDS, cls.HAS_POINT,
+                cls.CHECKS, cls.TESTS, cls.AMENDS, cls.HAS_POINT, cls.ELABORATES,
                 cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 

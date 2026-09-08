@@ -38,6 +38,22 @@ def test_point_wire_and_edges():
     assert [x["target_id"] for x in d] == ["r1", "r2"]
     assert all(x["relation_type"] == DevRelations.DERIVED_FROM for x in d)
     assert [x["properties"]["order"] for x in d] == [0, 1]
+    assert p.elaborates_edge() is None and p.parent_id == "" and "parent_key" not in w["properties"]
+
+
+def test_point_one_level_nesting_rides_parent_key_and_elaborates():
+    """Ruling e1fd4d64 (H): a child Point names its parent by KEY (same deliverable); the
+    ELABORATES edge is child -> parent, deterministic; identity ignores the parent."""
+    nid = note_node_id("post")
+    parent = PointNode(note_id=nid, key="k-parent", kind="claim", text="Confusion.", ordinal=1)
+    child = PointNode(note_id=nid, key="k-child", kind="example", text="Trig without a house.",
+                      ordinal=2, parent_key="k-parent")
+    assert child.parent_id == parent.id
+    assert child.to_graph_node()["properties"]["parent_key"] == "k-parent"
+    e = child.elaborates_edge()
+    assert e["source_id"] == child.id and e["target_id"] == parent.id and e["relation_type"] == DevRelations.ELABORATES
+    assert PointNode(nid, "k-child", "example", "x", parent_key="").id == child.id   # re-parenting keeps the node
+    assert DevRelations.ELABORATES in DevRelations.all()
 
 
 def test_deliverable_type_upserts_by_slug_and_kind_slate_is_glossed():
