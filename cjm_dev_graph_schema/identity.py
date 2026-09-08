@@ -193,3 +193,18 @@ def message_node_id(
     stays an ordinary property edit on the same node. Editor-born composition
     parts mint their own source uuid at commit time and get the same guarantee."""
     return derive_node_id("message", source_uuid)
+
+
+def reference_node_id(
+    graph_key: str,  # The sibling graph's config key (e.g. "transcription" — the `sibling_graphs` name)
+    foreign_id: str,  # The node id IN that graph (verbatim; foreign ids are opaque here)
+) -> str:  # Deterministic Reference node id
+    """Reference identity = (sibling graph key, foreign node id).
+
+    A Reference is the LOCAL stand-in for a node that lives in another graph (the
+    cross-graph seam, finding 0154f5e4): the store's foreign-key constraint drops an
+    edge whose target is not a local node, so the deliverable's edge lands on this
+    stand-in instead. Identity is the foreign address, never the observed content —
+    the same foreign node referenced from two deliverables converges on one node,
+    and a rebuild reproduces it from the journal without opening the sibling graph."""
+    return derive_node_id("reference", graph_key, foreign_id)

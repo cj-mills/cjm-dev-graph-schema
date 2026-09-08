@@ -85,3 +85,23 @@ def test_assertion_identity_binds_to_subject_content_hash():
     assert v1.id == v1b.id and v1.id != base.id and v1.id != v2.id
     assert v1.to_graph_node()["properties"]["subject_content_hash"] == "h1"
     assert "subject_content_hash" not in base.to_graph_node()["properties"]
+
+
+def test_reference_node_identity_is_the_foreign_address_and_hash_is_content():
+    # The cross-graph stand-in (0154f5e4): identity = (graph key, foreign id), never the
+    # observed content; the observation round-trips through the journal shape.
+    from cjm_dev_graph_schema.identity import reference_node_id
+    from cjm_dev_graph_schema.nodes import ReferenceNode, foreign_content_hash, parse_foreign_ref
+    foreign = {"id": "f-1", "label": "Correction", "properties": {"status": "applied", "payload": {"category": "quotation"}}}
+    ref = ReferenceNode.observe("transcription", foreign, observed_at=42.0)
+    assert ref.id == reference_node_id("transcription", "f-1")
+    assert ref.observed_hash == foreign_content_hash(foreign) and ref.observed_hash.startswith("sha256:")
+    assert foreign_content_hash({**foreign, "properties": {**foreign["properties"], "status": "superseded"}}) != ref.observed_hash
+    assert foreign_content_hash({**foreign, "updated_at": 9.9}) == ref.observed_hash  # row stamps do not move it
+    node = ref.to_graph_node()
+    assert node["label"] == DevNodeKinds.REFERENCE and node["properties"]["foreign_label"] == "Correction"
+    assert node["properties"]["title"] == "Correction: quotation @ transcription"
+    assert ReferenceNode.from_observation(ref.observation()).to_graph_node() == node
+    assert parse_foreign_ref("transcription:f1a2b3c4") == ("transcription", "f1a2b3c4")
+    assert parse_foreign_ref("f1a2b3c4-0000-0000-0000-000000000000") is None
+    assert DevNodeKinds.REFERENCE in DevNodeKinds.all()

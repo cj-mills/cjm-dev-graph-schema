@@ -15,6 +15,8 @@ layer's SUPERSEDES edges (resolve via `cjm_context_graph_layer.edits.resolve_act
 the value-space conflict logic lives in `predicates`.
 """
 
+import json
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
@@ -25,8 +27,8 @@ from cjm_context_graph_primitives.provenance import SourceRef
 
 from .identity import (assertion_node_id, cell_node_id, check_node_id, code_module_node_id,
                        code_symbol_node_id, code_text_node_id, decision_node_id, entity_node_id,
-                       factslot_node_id, message_node_id, note_node_id, section_node_id,
-                       series_node_id, session_node_id, topic_node_id)
+                       factslot_node_id, message_node_id, note_node_id, reference_node_id,
+                       section_node_id, series_node_id, session_node_id, topic_node_id)
 from .predicates import canonical_value, is_typed
 from .vocab import DevNodeKinds, DevRelations
 
@@ -953,3 +955,133 @@ class CodeTextNode:
                               content_hash=self.content_hash).to_dict()]
                    if self.content_hash and self.path else [])
         return {"id": self.id, "label": DevNodeKinds.CODE_TEXT, "properties": props, "sources": sources}
+
+
+# A foreign reference token: `<graph key>:<node id>` — the key names a `sibling_graphs` entry
+# in the addressing graph's config; the id is verbatim (prefix-shaped ids resolve in the
+# sibling at write time). The same shape the interim `derived_from` facts carried
+# (`transcription:<id>`), so those convert mechanically.
+_FOREIGN_REF_RE = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*):([0-9A-Fa-f][0-9A-Fa-f-]{5,35})$")
+
+
+def parse_foreign_ref(
+    token: str,  # A candidate `<graph key>:<node id or unique prefix>` token
+) -> Optional[Tuple[str, str]]:  # (graph key, foreign id/prefix), or None when the token is not foreign-shaped
+    """Split a `<graph key>:<id>` reference token; None for a plain local id / anything else.
+
+    Local ids are bare UUIDs (no key), so the colon form is unambiguous — `link` uses it
+    to route a target into the sibling graph named by the key instead of the local db."""
+    m = _FOREIGN_REF_RE.match(token.strip())
+    return (m.group(1), m.group(2)) if m else None
+
+
+def foreign_content_hash(
+    node: Dict[str, Any],  # A foreign node's wire dict ({id, label, properties, sources, ...})
+) -> str:  # "sha256:<hex>" over the node's label + canonical-JSON properties
+    """The content a Reference OBSERVES: the foreign node's label + its properties, canonically
+    serialized (sorted keys, no whitespace). Any property change — a stratum re-accepted,
+    relabeled, re-spanned, a status flip — moves the hash, which is exactly what the review
+    frontier must see; the row timestamps (`created_at`/`updated_at`) and `sources` are
+    left out so a re-ingest that reproduces the same content stays unchanged."""
+    props = node.get("properties") if isinstance(node, dict) else None
+    if props is None:
+        props = getattr(node, "properties", {}) or {}
+    label = node.get("label") if isinstance(node, dict) else getattr(node, "label", "")
+    canon = json.dumps({"label": label or "", "properties": props}, sort_keys=True,
+                       separators=(",", ":"), default=str)
+    return SourceRef.compute_hash(canon.encode("utf-8"))
+
+
+def foreign_display_title(
+    node: Dict[str, Any],  # A foreign node's wire dict
+) -> str:  # A short human handle read off the foreign node's own properties (best effort)
+    """Best-effort display handle for a foreign node: title/name/text-ish fields first,
+    then a payload category/operation (the transcription strata carry those), else its
+    label + id prefix. Captured at observation time so the local graph can render the
+    Reference without opening the sibling."""
+    props = (node.get("properties") if isinstance(node, dict) else getattr(node, "properties", None)) or {}
+    label = (node.get("label") if isinstance(node, dict) else getattr(node, "label", "")) or "?"
+    nid = (node.get("id") if isinstance(node, dict) else getattr(node, "id", "")) or ""
+    for f in ("display_title", "title", "name", "slug", "key"):
+        v = props.get(f)
+        if isinstance(v, str) and v.strip():
+            return v.strip()[:120]
+    payload = props.get("payload") if isinstance(props.get("payload"), dict) else {}
+    bits = [str(props.get("correction_type") or ""), str(payload.get("operation") or ""),
+            str(payload.get("category") or "")]
+    bits = [b for b in bits if b]
+    if bits:
+        return f"{label}: {' / '.join(bits)}"
+    text = props.get("text")
+    if isinstance(text, str) and text.strip():
+        return text.strip()[:80]
+    return f"{label} {nid[:8]}"
+
+
+@dataclass
+class ReferenceNode:
+    """A LOCAL stand-in for a node in a sibling graph — the cross-graph reference (0154f5e4).
+
+    A deliverable on one graph (a born post on the notes graph) derives from nodes that
+    live in another (strata, segments, Sources in the transcription workflow db). The
+    store drops an edge to a foreign id, so the deliverable's DERIVED_FROM lands on THIS
+    node, which carries the foreign address (`graph` key + `foreign_id`) and what was
+    OBSERVED there at write time (`observed_hash` over the foreign node's label +
+    properties, `observed_at`, the foreign label + a display title). The observation is
+    journaled with the link op, so a rebuild reproduces the Reference WITHOUT opening the
+    sibling graph — the foreign graph is never written and never needed for replay. The
+    review frontier opens the sibling read-only and compares the foreign node's live hash
+    against the observation the approval saw. Identity = (graph key, foreign id)."""
+    graph: str                                   # The sibling graph's config key (`sibling_graphs` name); identity input
+    foreign_id: str                              # The node id in that graph (verbatim); identity input
+    foreign_label: str = ""                      # The foreign node's label at observation (display + audit; content, not identity)
+    title: str = ""                              # Display handle read off the foreign node at observation
+    observed_hash: str = ""                      # `foreign_content_hash` of the foreign node at observation ("sha256:…")
+    observed_at: Optional[float] = None          # When the observation was taken (verb time; replay carries the journaled one)
+
+    @property
+    def id(self) -> str:  # Deterministic node id
+        """Deterministic node id (from (graph key, foreign id))."""
+        return reference_node_id(self.graph, self.foreign_id)
+
+    @classmethod
+    def observe(
+        cls,
+        graph: str,                 # The sibling graph key
+        node: Dict[str, Any],       # The foreign node's wire dict as read from the sibling
+        observed_at: Optional[float] = None,  # Observation time (None = now)
+    ) -> "ReferenceNode":  # The Reference carrying this observation
+        """Build the Reference from a live read of the foreign node (hash + label + title)."""
+        nid = (node.get("id") if isinstance(node, dict) else getattr(node, "id", "")) or ""
+        label = (node.get("label") if isinstance(node, dict) else getattr(node, "label", "")) or ""
+        return cls(graph=graph, foreign_id=str(nid), foreign_label=str(label),
+                   title=foreign_display_title(node), observed_hash=foreign_content_hash(node),
+                   observed_at=observed_at if observed_at is not None else time.time())
+
+    def observation(self) -> Dict[str, Any]:  # The journal-carried observation (what replay needs)
+        """The observation fields a `link` op journals so replay never opens the sibling."""
+        return {"graph": self.graph, "foreign_id": self.foreign_id, "foreign_label": self.foreign_label,
+                "title": self.title, "observed_hash": self.observed_hash, "observed_at": self.observed_at}
+
+    @classmethod
+    def from_observation(cls, obs: Dict[str, Any]) -> "ReferenceNode":  # Rebuild from a journaled observation
+        """The replay dual of `observation()`."""
+        return cls(graph=str(obs.get("graph") or ""), foreign_id=str(obs.get("foreign_id") or ""),
+                   foreign_label=str(obs.get("foreign_label") or ""), title=str(obs.get("title") or ""),
+                   observed_hash=str(obs.get("observed_hash") or ""),
+                   observed_at=(float(obs["observed_at"]) if obs.get("observed_at") is not None else None))
+
+    def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
+        """Build the Reference node wire dict (root_kind=reference; no local provenance file)."""
+        props: Dict[str, Any] = {
+            "graph": self.graph,
+            "foreign_id": self.foreign_id,
+            "foreign_label": self.foreign_label,
+            "title": (self.title or f"{self.foreign_label or 'node'} {self.foreign_id[:8]}") + f" @ {self.graph}",
+            "name": self.title or f"{self.foreign_label or 'node'} {self.foreign_id[:8]}",
+            "observed_hash": self.observed_hash,
+            "root_kind": "reference",
+        }
+        if self.observed_at is not None:
+            props["observed_at"] = self.observed_at
+        return {"id": self.id, "label": DevNodeKinds.REFERENCE, "properties": props, "sources": []}

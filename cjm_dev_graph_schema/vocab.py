@@ -40,6 +40,7 @@ class DevNodeKinds:
     SECTION = "Section"         # One heading-delimited section of a Note's body (the navigable unit + anchor target); verbatim section text
     CHECK = "Check"             # A definition-of-done check on a work item — its `task_state` derives closable/drift (it gates CLOSING the item, never starting it)
     MESSAGE = "Message"         # A discourse event (scratchpad part / CC-transcript message / agent exchange): actor + timestamp + sequence position + capture provenance
+    REFERENCE = "Reference"     # A local stand-in for a node in a SIBLING graph (graph key + foreign id + the content hash last observed there) — the cross-graph reference seam (0154f5e4); edges land on it, the foreign graph is never written
 
     @classmethod
     def all(cls) -> list:  # All dev-schema node labels
@@ -47,7 +48,7 @@ class DevNodeKinds:
         return [cls.NOTE, cls.DECISION, cls.FACT_SLOT, cls.ASSERTION, cls.EVIDENCE,
                 cls.THREAD, cls.SESSION, cls.PROCEDURE, cls.ENTITY,
                 cls.CODE_MODULE, cls.CODE_SYMBOL, cls.CELL, cls.CODE_TEXT,
-                cls.TOPIC, cls.SERIES, cls.SECTION, cls.CHECK, cls.MESSAGE]
+                cls.TOPIC, cls.SERIES, cls.SECTION, cls.CHECK, cls.MESSAGE, cls.REFERENCE]
 
 
 class DevRelations:

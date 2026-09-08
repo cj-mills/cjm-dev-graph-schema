@@ -33,6 +33,7 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `factslot_node_id` _function_ — Fact-slot identity = (subject, predicate).
 - `message_node_id` _function_ — Message identity = its capture-source record uuid.
 - `note_node_id` _function_ — Note identity = its stable slug.
+- `reference_node_id` _function_ — Reference identity = (sibling graph key, foreign node id).
 - `section_node_id` _function_ — Section identity = (enclosing Note, heading anchor slug).
 - `series_node_id` _function_ — Series identity = its stable key.
 - `session_node_id` _function_ — Session identity = its stable key (so DECIDED_IN/PRODUCED_IN converge).
@@ -51,10 +52,14 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `FactSlotNode` _class_ — A `(subject, predicate)` slot — the home for layered, supersede-able claims.
 - `MessageNode` _class_ — A discourse EVENT on a session spine (DEC 91c47b4a): one user-facing message.
 - `NoteNode` _class_ — The coarse-tier document node: one decomposed markdown/memory file.
+- `ReferenceNode` _class_ — A LOCAL stand-in for a node in a sibling graph — the cross-graph reference (0154f5e4).
 - `SectionNode` _class_ — One heading-delimited section of a Note's body — the navigable unit + anchor target.
 - `SeriesNode` _class_ — An ordered collection/progression a note belongs to (a Quarto series, …).
 - `SessionNode` _class_ — A working session — the home decisions/facts are PRODUCED_IN / DECIDED_IN.
 - `TopicNode` _class_ — A category/tag facet — a thematic-clustering subject shared across notes.
+- `foreign_content_hash` _function_ — The content a Reference OBSERVES: the foreign node's label + its properties, canonically
+- `foreign_display_title` _function_ — Best-effort display handle for a foreign node: title/name/text-ish fields first,
+- `parse_foreign_ref` _function_ — Split a `<graph key>:<id>` reference token; None for a plain local id / anything else.
 
 ### `cjm_dev_graph_schema.predicates`
 
