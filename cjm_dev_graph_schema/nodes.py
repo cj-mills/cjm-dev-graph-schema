@@ -1102,8 +1102,10 @@ RECOMMENDED_POINT_KINDS = (
     "quotation",   # someone's words quoted verbatim by the source (carries the exact text + attribution)
     "datum",       # a number, measurement, date or count the source states
     "comparison",  # entities compared on named properties (renders as a table; `data.columns` + `data.rows`)
-    "sequence",    # an ordered / dated series the source recounts (renders as an ordered list; `data.items`)
+    "sequence",    # an ordered / dated series the source recounts (renders as an ordered list of its `event` children; legacy `data.items`)
     "citation",    # an external work, person or source the source itself names
+    "event",       # one item of a sequence, as a CHILD point (`data.when` + text); its support nests beneath it
+    "synopsis",    # the ONE unit-spanning row: what the unit argues, under ~30 words; renders as the description
 )
 
 POINT_KIND_GLOSSES: Dict[str, str] = {
@@ -1116,6 +1118,8 @@ POINT_KIND_GLOSSES: Dict[str, str] = {
     "comparison": "two or more things compared on named properties — give `data.columns` and `data.rows`; renders as a table",
     "sequence": "an ordered or dated series the source recounts — give `data.items` as [{when, what}]; renders as an ordered list",
     "citation": "an external work, person, or source the SOURCE names (what it cites), not what a research pass would follow",
+    "event": "one item of a `sequence`, as a CHILD point of it (`parent` = the sequence row): `data.when` + the text; its own support nests beneath it (ruling on the second staging read, 2026-09-08)",
+    "synopsis": "ONE row per unit, written last, spanning the whole unit (the only kind that may cross headers): one or two sentences under ~30 words on what the unit argues — never a heading list; renders as the description",
 }
 
 
