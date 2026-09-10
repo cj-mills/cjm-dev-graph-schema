@@ -138,11 +138,35 @@ def test_publish_state_is_an_ordered_lifecycle():
     # Ruling 793f025e: draft < reviewed < published — a human promotion auto-supersedes the
     # prior stage (never a contradiction); a demotion is born superseded; off-sequence = None.
     assert P.is_typed("publish_state") and P.is_ordered("publish_state")
-    assert P.get_predicate("publish_state").order_values == ("draft", "reviewed", "published")
+    assert P.get_predicate("publish_state").order_values == ("fixture", "draft", "reviewed", "published")
     assert P.ordering_supersedes("publish_state", "reviewed", "draft") is True
     assert P.ordering_supersedes("publish_state", "published", "reviewed") is True
     assert P.ordering_supersedes("publish_state", "draft", "published") is False
     assert P.ordering_supersedes("publish_state", "retracted", "draft") is None
+    # The draft lifecycle (item 140981e9): `fixture` is the floor — re-stating a draft as a
+    # fixture is a DEMOTION (born superseded unless the human names the draft explicitly).
+    assert P.ordering_supersedes("publish_state", "draft", "fixture") is True
+    assert P.ordering_supersedes("publish_state", "fixture", "draft") is False
+    assert P.ordering_supersedes("publish_state", "fixture", "published") is False
+
+
+def test_publish_state_retired_is_a_terminal_side_state():
+    # Item 140981e9 (ruling a7ca900d (4)): `retired` closes the lifecycle from ANY stage — it
+    # supersedes fixture/draft/reviewed/published alike — and a stage asserted over a retired
+    # deliverable is born superseded (reopening is an explicit human --supersede).
+    p = P.get_predicate("publish_state")
+    assert p.terminal_values == ("retired",) and "retired" not in p.order_values
+    assert P.is_terminal("publish_state", "retired") and P.is_terminal("publish_state", "RETIRED")
+    assert not P.is_terminal("publish_state", "draft") and not P.is_terminal("publish_state", "fixture")
+    assert not P.is_terminal("task_state", "done") and not P.is_terminal("status", "retired")
+    for stage in ("fixture", "draft", "reviewed", "published"):
+        assert P.ordering_supersedes("publish_state", "retired", stage) is True
+        assert P.ordering_supersedes("publish_state", stage, "retired") is False
+    assert P.ordering_supersedes("publish_state", "retired", "retired") is None
+    assert P.ordering_supersedes("publish_state", "retired", "bogus") is None
+    assert P.ordering_supersedes("publish_state", "bogus", "retired") is None
+    # `retired` is not an approval: the review frontier never roots on it.
+    assert not P.is_approval("publish_state", "retired") and not P.is_approval("publish_state", "fixture")
 
 
 def test_review_verdict_is_a_multivalued_set_and_approval_class_is_data():

@@ -51,11 +51,19 @@ TASK_IN_PROGRESS = "in_progress"  # Actively being worked (between open and done
 TASK_DONE = "done"         # Finished (human-judged now; oracle-derived later)
 
 # Public-facing deliverable lifecycle (ruling 793f025e): asserted `draft` at birth,
-# promoted by a human, emitted outward only when `published`.
+# promoted by a human, emitted outward only when `published`. The draft lifecycle
+# (ruling a7ca900d (4), item 140981e9): `fixture` sits BELOW draft — a page kept for
+# the graph mechanics it exercises, never a promotion candidate, excluded from every
+# projection but staging; `retired` is the TERMINAL side-state — an abandoned page
+# closed with its provenance kept (asserting it supersedes any active stage; reopening
+# is an explicit human `--supersede`). A work's waiting-on-siblings condition is NOT a
+# page state — it lives on the work page as a promotion condition (a graph query).
 PUBLISH_STATE = "publish_state"  # The deliverable publication predicate
+PUBLISH_FIXTURE = "fixture"      # Test fixture: staging only, never promoted
 PUBLISH_DRAFT = "draft"          # Born; not reviewed
 PUBLISH_REVIEWED = "reviewed"    # A person reviewed it in staging
 PUBLISH_PUBLISHED = "published"  # Cleared for the outward emit
+PUBLISH_RETIRED = "retired"      # Terminal: abandoned, provenance kept, never emitted
 
 # Review verdicts (design 40622922 (5), item 730e077e): a reviewer's considered "no update
 # needed" for ONE upstream change of an approved deliverable — asserted ON the deliverable,
@@ -84,6 +92,7 @@ class Predicate:
     ordering: str      # ORDER_NONE | ORDER_SEMVER | ORDER_ENUM
     multivalued: bool = False  # A SET slot: many distinct values coexist, never conflict (e.g. aliases)
     order_values: Optional[Tuple[str, ...]] = None  # For ORDER_ENUM: the lifecycle sequence (earliest -> latest)
+    terminal_values: Optional[Tuple[str, ...]] = None  # For ORDER_ENUM: side-states OFF the sequence that close it (a terminal supersedes any active stage; a stage asserted over a terminal is born superseded — reopening is an explicit supersede)
 
 
 # The typed-predicate registry (controlled-with-free-reuse: novel predicates stay
@@ -107,8 +116,12 @@ PREDICATES = {
     # invocation that mints it; `draft` < `reviewed` < `published` is an ordered enum so
     # a human promotion auto-supersedes the prior stage, and every outward emit (the
     # website root first — item 6eba8815) is gated on a single active `published`.
+    # The draft lifecycle (ruling a7ca900d (4), item 140981e9): `fixture` BELOW draft (a
+    # re-statement draft -> fixture is a demotion, so it is born superseded unless the human
+    # names the draft with --supersede — the explicit-demotion path); `retired` TERMINAL.
     PUBLISH_STATE: Predicate(PUBLISH_STATE, ENUM, CHANGES, ORDER_ENUM,
-                             order_values=(PUBLISH_DRAFT, PUBLISH_REVIEWED, PUBLISH_PUBLISHED)),
+                             order_values=(PUBLISH_FIXTURE, PUBLISH_DRAFT, PUBLISH_REVIEWED, PUBLISH_PUBLISHED),
+                             terminal_values=(PUBLISH_RETIRED,)),
     # Review verdicts (design 40622922 (5)): a SET of acknowledged change keys on an approved
     # deliverable — many coexist and never conflict; retiring one is an explicit supersession.
     # Freetext (the key is derived by the projector, never typed by hand from memory).
@@ -247,11 +260,34 @@ def ordering_supersedes(
         return a > b
     if p.ordering == ORDER_ENUM:
         seq = p.order_values or ()
+        term = p.terminal_values or ()
         a, b = canonical_value(slug, new_value), canonical_value(slug, old_value)
-        if a not in seq or b not in seq or a == b:
-            return None  # off-sequence or equal value -> no auto supersession
+        if a == b:
+            return None
+        # Terminal side-states (item 140981e9): closing supersedes ANY active stage (or another
+        # terminal); a stage asserted OVER a terminal is born superseded — reopening a retired
+        # deliverable is an explicit human `--supersede`, never an accident of ordering.
+        if a in term:
+            return True if (b in seq or b in term) else None
+        if b in term:
+            return False if a in seq else None
+        if a not in seq or b not in seq:
+            return None  # off-sequence value -> no auto supersession
         return seq.index(a) > seq.index(b)
     return None
+
+
+def is_terminal(
+    slug: str,   # Predicate slug
+    value: str,  # A value on that predicate
+) -> bool:
+    """Whether `value` is a TERMINAL side-state of an ordered enum (item 140981e9): off the
+    lifecycle sequence, it closes the slot — `publish_state=retired` today. False for
+    untyped predicates, unordered ones, and in-sequence stages."""
+    p = get_predicate(slug)
+    if p is None or p.ordering != ORDER_ENUM or not p.terminal_values:
+        return False
+    return canonical_value(slug, value) in p.terminal_values
 
 
 def values_conflict(
