@@ -74,6 +74,7 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `is_approval` _function_ — Whether an assertion is approval-class (`APPROVAL_CLASS` — schema data, design 40622922).
 - `is_multivalued` _function_ — Whether the predicate is a SET slot (distinct values coexist, never conflict).
 - `is_ordered` _function_ — Whether the predicate's values have a "later supersedes earlier" ordering.
+- `is_terminal` _function_ — Whether `value` is a TERMINAL side-state of an ordered enum (item 140981e9): off the
 - `is_typed` _function_ — Whether the predicate carries a value-space (exact entry OR prefix family).
 - `ordering_supersedes` _function_ — For an ordered predicate, does `new_value` supersede `old_value`?
 - `soft_conflict` _function_ — Whether an UNTYPED slot's active values disagree (a worklist candidate).
