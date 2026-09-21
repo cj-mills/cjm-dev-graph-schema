@@ -1156,6 +1156,9 @@ class PointNode:
     data: Dict[str, Any] = field(default_factory=dict)  # Kind-specific structure (`comparison`: columns/rows; `sequence`: items)
     unit: Dict[str, Any] = field(default_factory=dict)  # The source structure unit address ({source_id, unit, title, part, chapter…})
     parent_key: str = ""                         # The key of the Point this one elaborates ("" = top level; one level only)
+    speaker: str = ""                            # Who says it: the speaker of the run's FIRST line, derived from the pack lines at ingest — never drafted (ruling ba341c72 (1)); "" = the source carries no speakers
+    speakers: List[str] = field(default_factory=list)  # Every speaker over the run, in order — only when the run crosses a speaker change
+    refers_to: List[str] = field(default_factory=list)  # Keys of the Points this one leans on (a Q&A answer's back-links into the lecture body — ruling ba341c72 (2)); `REFERENCES` edges once those Points stand; the hook a later non-source placement pass moves a question by
     actor: str = "agent:session"                 # Who proposed the text (the accept records the confirming actor on the op)
 
     @property
@@ -1198,6 +1201,12 @@ class PointNode:
             props["unit"] = dict(self.unit)
         if self.parent_key:
             props["parent_key"] = self.parent_key
+        if self.speaker:
+            props["speaker"] = self.speaker
+        if len(self.speakers) > 1:
+            props["speakers"] = list(self.speakers)
+        if self.refers_to:
+            props["refers_to"] = list(self.refers_to)
         return {"id": self.id, "label": DevNodeKinds.POINT, "properties": props, "sources": []}
 
     def has_point_edge(self) -> Dict[str, Any]:  # HAS_POINT edge wire dict (note -> point)
@@ -1209,6 +1218,17 @@ class PointNode:
         if not self.parent_key:
             return None
         return make_edge(self.id, self.parent_id, DevRelations.ELABORATES)
+
+    def refers_to_edges(
+        self,
+        standing_keys: Optional[List[str]] = None,      # Keys of the Points that already stand (None = every key in `refers_to`)
+    ) -> List[Dict[str, Any]]:  # REFERENCES edge wire dicts (this point -> each Point it leans on)
+        """The back-link edges to the Points this one leans on (references are edges). A key
+        whose Point does not stand yet gets no edge — it stays in `refers_to` and the edge
+        lands when a later accept of this point finds it."""
+        keys = [k for k in self.refers_to if standing_keys is None or k in set(standing_keys)]
+        return [make_edge(self.id, point_node_id(self.note_id, k), DevRelations.REFERENCES,
+                          properties={"role": "refers_to"}) for k in keys]
 
     def derived_from_edges(
         self,
