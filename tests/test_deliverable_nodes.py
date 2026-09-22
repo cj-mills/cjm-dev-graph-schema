@@ -39,6 +39,13 @@ def test_point_wire_and_edges():
     assert all(x["relation_type"] == DevRelations.DERIVED_FROM for x in d)
     assert [x["properties"]["order"] for x in d] == [0, 1]
     assert p.elaborates_edge() is None and p.parent_id == "" and "parent_key" not in w["properties"]
+    # ruling 1798a796: the fold's provenance and the overlap judgements ride the point (absent when empty)
+    assert "origins" not in w["properties"] and "judged" not in w["properties"]
+    q = PointNode(note_id=nid, key="k2", kind="claim", text="x", origins=[{"cell": "blind/opus", "how": "shown"}],
+                  judged=[{"key": "k", "verdict": "different"}])
+    assert q.to_graph_node()["properties"]["origins"] == [{"cell": "blind/opus", "how": "shown"}]
+    assert q.to_graph_node()["properties"]["judged"] == [{"key": "k", "verdict": "different"}]
+    assert q.id == PointNode(nid, "k2", "claim", "x").id                                    # neither is identity
 
 
 def test_point_one_level_nesting_rides_parent_key_and_elaborates():

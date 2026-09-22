@@ -1159,6 +1159,8 @@ class PointNode:
     speaker: str = ""                            # Who says it: the speaker of the run's FIRST line, derived from the pack lines at ingest — never drafted (ruling ba341c72 (1)); "" = the source carries no speakers
     speakers: List[str] = field(default_factory=list)  # Every speaker over the run, in order — only when the run crosses a speaker change
     refers_to: List[str] = field(default_factory=list)  # Keys of the Points this one leans on (a Q&A answer's back-links into the lecture body — ruling ba341c72 (2)); `REFERENCES` edges once those Points stand; the hook a later non-source placement pass moves a question by
+    origins: List[Dict[str, Any]] = field(default_factory=list)  # Provenance of the merge that produced the point (ruling 1798a796 (3)): one entry per drafted row folded into it — {set_id, proposal_id, cell (arm/model), arm, model, window, from_i, to_i, kind, how (shown | matched | added | same | contains)}; the row's text is recoverable from its set by proposal id. A folded row is never deleted — it becomes an origin, so per-arm and per-model credit survives the fold
+    judged: List[Dict[str, Any]] = field(default_factory=list)  # Recorded overlap judgements (ruling 1798a796 (1)): {key: the other Point's key, verdict: different | related} — a cross-origin pair sharing segments with no judgement leaves the draft unclean; the record rides the point so a re-render or a re-accept never re-opens it
     actor: str = "agent:session"                 # Who proposed the text (the accept records the confirming actor on the op)
 
     @property
@@ -1207,6 +1209,10 @@ class PointNode:
             props["speakers"] = list(self.speakers)
         if self.refers_to:
             props["refers_to"] = list(self.refers_to)
+        if self.origins:
+            props["origins"] = [dict(o) for o in self.origins]
+        if self.judged:
+            props["judged"] = [dict(j) for j in self.judged]
         return {"id": self.id, "label": DevNodeKinds.POINT, "properties": props, "sources": []}
 
     def has_point_edge(self) -> Dict[str, Any]:  # HAS_POINT edge wire dict (note -> point)
