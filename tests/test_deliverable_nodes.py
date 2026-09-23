@@ -28,9 +28,10 @@ def test_point_identity_is_owner_and_key_never_content():
     # a re-home (note -> set) changes the id and nothing else: every cross-point field names a KEY
     homed = PointNode(note_node_id("post"), "p-1", "claim", a.text, parent_key="p-0", refers_to=["p-9"])
     assert homed.id != a.id and homed.parent_key == "p-0" and homed.refers_to == ["p-9"]
-    # the wire carries the owner — and, transitionally, the same value as `note_id`
+    # the wire carries the OWNER and nothing else names it (the transitional `note_id` of 14cafef6 is gone:
+    # the projection reads `owner_id` — the re-home build of 81d6e669)
     w = a.to_graph_node()["properties"]
-    assert w["owner_id"] == owner and w["note_id"] == owner
+    assert w["owner_id"] == owner and "note_id" not in w
     assert a.has_point_edge()["source_id"] == owner
 
 

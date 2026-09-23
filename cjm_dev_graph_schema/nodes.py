@@ -1211,7 +1211,6 @@ class PointNode:
             "name": (self.lead or self.text)[:80],
             "title": f"{self.kind}: {(self.lead + ' — ' if self.lead else '') + self.text}"[:160],
             "owner_id": self.owner_id,
-            "note_id": self.owner_id,  # TRANSITIONAL (the re-home build 81d6e669): purenotes still reads a point's owner as `note_id`; dropped once it reads `owner_id`
             "key": self.key,
             "kind": self.kind,
             "text": self.text,
