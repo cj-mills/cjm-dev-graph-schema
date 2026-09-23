@@ -740,9 +740,16 @@ class CodeSymbolNode:
     authoring unit a graph→`.py` canonical emit reassembles. v1 is COARSE — a class is
     ONE verbatim body (its methods stay DEFINES overlay symbols with no independent
     body; method-level authoring is the standing coarse→fine promotion). Nested symbols
-    leave `body`/`order_index` empty."""
-    module_id: str                               # Enclosing CodeModule node id; identity input (with qualname)
-    qualname: str                                # Qualified name within the module (e.g. "EntityNode.to_graph_node"); identity input
+    leave `body`/`order_index` empty.
+
+    IDENTITY IS CONTAINER-INDEPENDENT (36f649d3): the id derives from the address the
+    symbol was BORN at, not the one it lives at. `module_id`/`qualname` are where it
+    lives now; when a keep-identity rename or move re-homed it, the `birth_*` fields
+    (handed back by the journal-derived identity map) name the birth address and the id
+    stays put — so every journaled edge onto the symbol survives the membership change
+    and no rebuild re-keys it. `generation` counts newcomers at a vacated address."""
+    module_id: str                               # Enclosing CodeModule node id (where it lives NOW; identity input unless birth fields are set)
+    qualname: str                                # Qualified name within the module NOW (e.g. "EntityNode.to_graph_node"); identity input unless `birth_qualname` is set
     symbol_kind: str                             # "function" | "class" | "method"
     path: str                                    # File path (provenance locator)
     content_hash: str = ""                        # Content hash over the file bytes (the symbol shares its module's source file)
@@ -755,11 +762,21 @@ class CodeSymbolNode:
     body_hash: str = ""                          # Content hash over `body` ("algo:hexdigest"); the authoring slot's content address
     order_index: Optional[int] = None            # Position among the module's top-level regions (emit order; content, not identity; None for nested)
     properties: Dict[str, Any] = field(default_factory=dict)  # Extra symbol properties
+    birth_repo_key: str = ""                     # Identity: the repo the symbol was BORN in ("" = born where it lives); set with `birth_module_path`
+    birth_module_path: str = ""                  # Identity: the module path it was born at ("" = born in `module_id`)
+    birth_qualname: str = ""                     # Identity: its qualname at birth ("" = born as `qualname`)
+    generation: int = 0                          # Identity: the n-th newcomer born at an address a live symbol vacated (0 = the first ever born there)
 
     @property
     def id(self) -> str:  # Deterministic node id
-        """Deterministic node id (from (module, qualname))."""
-        return code_symbol_node_id(self.module_id, self.qualname)
+        """Deterministic node id from the BIRTH address (module, qualname[, generation]):
+        the current `module_id`/`qualname` unless a keep-identity rename/move recorded
+        where the symbol was born — then the birth fields win and the id survives."""
+        if self.birth_module_path and not self.birth_repo_key:
+            raise ValueError("birth_module_path needs birth_repo_key (the birth module id derives from both)")
+        mid = (code_module_node_id(self.birth_repo_key, self.birth_module_path)
+               if self.birth_module_path else self.module_id)
+        return code_symbol_node_id(mid, self.birth_qualname or self.qualname, self.generation)
 
     def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
         """Build the CodeSymbol node wire dict (root_kind=asserted)."""
@@ -787,6 +804,13 @@ class CodeSymbolNode:
             props["body_hash"] = self.body_hash
         if self.order_index is not None:
             props["order_index"] = self.order_index
+        if self.birth_module_path or self.birth_qualname or self.generation:
+            # Identity provenance: WHERE the kept id comes from (a `show` reads "born as
+            # X in M"); absent on a symbol born where it lives.
+            props["birth_repo_key"] = self.birth_repo_key
+            props["birth_module_path"] = self.birth_module_path
+            props["birth_qualname"] = self.birth_qualname
+            props["generation"] = self.generation
         props.update(self.properties)
         sources = ([SourceRef(locator=FileRef(path=self.path),
                               content_hash=self.content_hash).to_dict()]

@@ -211,3 +211,41 @@ def test_module_contains_edges_order_regions():
     edges = m.contains_edges(["R0", "R1", "R2"])
     assert [e["target_id"] for e in edges] == ["R0", "R1", "R2"]
     assert all(e["source_id"] == m.id and e["relation_type"] == DevRelations.CONTAINS for e in edges)
+
+
+def test_symbol_identity_survives_a_move_and_a_rename_and_generation_disambiguates():
+    # Container-independent identity (36f649d3): the id is the BIRTH address.
+    m = _mod()
+    born = CodeSymbolNode(module_id=m.id, qualname="alpha", symbol_kind="function", path="/x")
+    other = CodeModuleNode(repo_key="cjm-dev-graph-schema",
+                           module_path="cjm_dev_graph_schema/other.py", path="/y",
+                           content_hash="h")
+    # Re-homed to another module AND renamed: the birth fields hand the birth address back.
+    moved = CodeSymbolNode(module_id=other.id, qualname="beta", symbol_kind="function", path="/y",
+                           birth_repo_key="cjm-dev-graph-schema",
+                           birth_module_path="cjm_dev_graph_schema/nodes.py",
+                           birth_qualname="alpha")
+    assert moved.id == born.id
+    props = moved.to_graph_node()["properties"]
+    assert props["module_id"] == other.id and props["qualname"] == "beta"   # where it lives now
+    assert props["birth_qualname"] == "alpha"                               # where it was born
+    assert props["birth_module_path"] == "cjm_dev_graph_schema/nodes.py"
+    assert "birth_qualname" not in born.to_graph_node()["properties"]      # born here: no birth fields
+    # A rename in place (same module) keeps the id through `birth_qualname` alone.
+    renamed = CodeSymbolNode(module_id=m.id, qualname="gamma", symbol_kind="function", path="/x",
+                             birth_qualname="alpha")
+    assert renamed.id == born.id
+    # A NEWCOMER born at the vacated address is generation 1 — never the mover's id.
+    newcomer = CodeSymbolNode(module_id=m.id, qualname="alpha", symbol_kind="function", path="/x",
+                              generation=1)
+    assert newcomer.id != born.id
+    assert newcomer.id == code_symbol_node_id(m.id, "alpha", 1)
+    assert newcomer.to_graph_node()["properties"]["generation"] == 1
+    # Generation 0 is the pre-scheme id: nothing minted before the scheme re-keys.
+    assert code_symbol_node_id(m.id, "alpha", 0) == code_symbol_node_id(m.id, "alpha") == born.id
+    # A nested symbol under a moved class derives from the SAME birth module (prefixed qualname).
+    method = CodeSymbolNode(module_id=other.id, qualname="Thing.m", symbol_kind="method", path="/y",
+                            birth_repo_key="cjm-dev-graph-schema",
+                            birth_module_path="cjm_dev_graph_schema/nodes.py",
+                            birth_qualname="Thing.m")
+    assert method.id == code_symbol_node_id(m.id, "Thing.m")

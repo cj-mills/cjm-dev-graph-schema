@@ -142,14 +142,23 @@ def code_module_node_id(
 
 
 def code_symbol_node_id(
-    module_id: str,  # The enclosing CodeModule node id (already repo+path-stable)
-    qualname: str,   # The symbol's qualified name within the module (e.g. "EntityNode.to_graph_node")
+    module_id: str,  # The enclosing CodeModule node id AT BIRTH (already repo+path-stable)
+    qualname: str,   # The symbol's qualified name within the module AT BIRTH (e.g. "EntityNode.to_graph_node")
+    generation: int = 0,  # 0 = the first symbol ever born at this address; n = the n-th newcomer born at an address a live symbol vacated (a rename/move freed it)
 ) -> str:  # Deterministic CodeSymbol node id
-    """Code-symbol identity = (enclosing module, qualified name).
+    """Code-symbol identity = (module at birth, qualified name at birth[, generation]).
 
-    Derives off the module id (itself repo+path-stable), so a symbol has the same
-    id across re-decomposition and across graphs. Qualname carries nesting
-    (`Class.method`), so a method and a same-named free function never collide."""
+    Derives off the module id (itself repo+path-stable), so a symbol has the same id
+    across re-decomposition and across graphs. Qualname carries nesting
+    (`Class.method`), so a method and a same-named free function never collide.
+    CONTAINER-INDEPENDENT (36f649d3): the address is the one the symbol was BORN at —
+    a rename or a move keeps the id (the node's `birth_*` fields, handed back by the
+    journal-derived identity map, name that address), so journaled edges survive a
+    membership change instead of orphaning. `generation` disambiguates a NEW symbol
+    born at an address the earlier one vacated (else the newcomer would collide with
+    the mover's kept id); generation 0 reproduces every id minted before the scheme."""
+    if generation:
+        return derive_node_id("code_symbol", module_id, qualname, f"gen:{generation}")
     return derive_node_id("code_symbol", module_id, qualname)
 
 
