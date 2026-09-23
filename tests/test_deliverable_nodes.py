@@ -96,15 +96,17 @@ def test_point_set_owns_the_source_units_points_and_a_note_renders_it():
     assert DevNodeKinds.POINT_SET in DevNodeKinds.all() and DevRelations.RENDERS in DevRelations.all()
 
 
-def test_section_point_level_and_the_placed_overlay_ride_the_deliverable():
-    """Rulings 96be1528 (2), (3), (7): a `section` point carries its heading level (absent
-    from the wire at 0); a move and the cross-reference verdicts ride the PLACED edge to
-    the deliverable-owned section, never the shared substance point."""
+def test_section_point_nests_by_parent_and_the_placed_overlay_rides_the_deliverable():
+    """Rulings 96be1528 (2) as amended, (3), (7): a `section` point nests by naming its parent
+    section and its heading depth is DERIVED from that chain — never a stored level; a move
+    and the cross-reference verdicts ride the PLACED edge to the deliverable-owned section,
+    never the shared substance point."""
     nid = note_node_id("post")
-    sec = PointNode(owner_id=nid, key="sec-1", kind="section", text="The port library by library", level=2)
-    assert sec.to_graph_node()["properties"]["level"] == 2
-    assert "level" not in PointNode(owner_id=nid, key="k", kind="claim", text="x").to_graph_node()["properties"]
-    assert PointNode(owner_id=nid, key="sec-1", kind="section", text="retitled", level=1).id == sec.id  # a relevel keeps the node
+    sec = PointNode(owner_id=nid, key="sec-1", kind="section", text="The port library by library")
+    sub = PointNode(owner_id=nid, key="sec-1a", kind="section", text="Thrust containers", parent_key="sec-1")
+    assert sub.parent_id == sec.id and sub.elaborates_edge()["target_id"] == sec.id
+    assert "level" not in sub.to_graph_node()["properties"] and not hasattr(sub, "level")
+    assert PointNode(owner_id=nid, key="sec-1a", kind="section", text="retitled", parent_key="").id == sub.id  # a re-parent or retitle keeps the node
     setid = point_set_node_id("transcription", "src-1")
     q = PointNode(owner_id=setid, key="q-7", kind="question", text="Why CUB over cooperative groups?", refers_to=["k-3", "k-9"])
     e = placed_edge(q.id, sec.id, after="k-3", refs_shown=["k-3"])

@@ -1152,15 +1152,18 @@ class PointNode:
     sibling read), the heading it falls under (the read-aloud section header the apparatus
     strata name, captured from the pack), and an optional `lead` term (the only emphasis a
     rendering applies), and — ruling e1fd4d64 (H) — an optional `parent_key` naming the
-    Point it elaborates (ONE level: an `ELABORATES` edge child -> parent; the renderer nests
-    the child as a sub-item; a parent never carries a parent of its own). Fidelity is by
+    Point it elaborates (an `ELABORATES` edge child -> parent; the renderer nests the child
+    as a sub-item; how deep SUBSTANCE points may nest is the TYPE's presentation policy —
+    two for the notes types — while `section` points nest as deep as the outline has parents). Fidelity is by
     construction — a Point exists only as derived, and its DERIVED_FROM edges land on
     cross-graph References to the segments.
 
     Identity = (OWNER, opaque key), ruling 96be1528 (P): a source's points are the
     source's points, so a SUBSTANCE point is owned by the PointSet of its (Source, unit)
     and every deliverable that renders the unit shares it; a deliverable owns only its
-    OWN points — a `section` (the synthesized outline, with a `level`) and a `research`
+    OWN points — a `section` (the synthesized outline: a section NESTS by naming its parent
+    section in `parent_key`, and heading depth is DERIVED from that chain at render, never
+    stored — structure from relations, amendment of 96be1528 (2)) and a `research`
     point (`provenance` = research: citations in place of a segment run, ruling 96be1528
     (4)). Re-render / re-order / re-parent / text edits / a re-home keep the node: every
     cross-point field (`parent_key`, `refers_to`, `expands`, `judged`, `origins`) names
@@ -1187,7 +1190,6 @@ class PointNode:
     refers_to: List[str] = field(default_factory=list)  # Keys of the Points this one leans on (a Q&A answer's back-links into the lecture body — ruling ba341c72 (2)); `REFERENCES` edges once those Points stand; the hook a later non-source placement pass moves a question by
     origins: List[Dict[str, Any]] = field(default_factory=list)  # Provenance of the merge that produced the point (ruling 1798a796 (3)): one entry per drafted row folded into it — {set_id, proposal_id, cell (arm/model), arm, model, window, from_i, to_i, kind, how (shown | matched | added | same | contains)}; the row's text is recoverable from its set by proposal id. A folded row is never deleted — it becomes an origin, so per-arm and per-model credit survives the fold
     judged: List[Dict[str, Any]] = field(default_factory=list)  # Recorded overlap judgements (ruling 1798a796 (1)): {key: the other Point's key, verdict: different | related} — a cross-origin pair sharing segments with no judgement leaves the draft unclean; the record rides the point so a re-render or a re-accept never re-opens it
-    level: int = 0                               # `section` points only (ruling 96be1528 (2)): the heading level — 1 = the top of the outline, 2 nests under the previous level-1 section (ingest refuses a 2 with no 1 before it); 0 = not a section. Membership stays order-derived to the next anchor at ANY level; render emits heading depth from it
     provenance: str = "source"                   # `source` = derived from a segment run (the default); `research` = a RESEARCH point (ruling 96be1528 (4)): owned by the deliverable, no segment run, `citations` in place of a timestamp — the marker that keeps an expansion from being mistaken for the lecture (60681b4f)
     citations: List[Dict[str, Any]] = field(default_factory=list)  # `research` points: the citation contract (d1b34704 (b)) — {url, location, snippet, retrieved_at, reference_id}: the url resolved and the snippet found at that location or the row is refused at ingest; `reference_id` = the captured page's Reference (ReferenceNode.WEB) the DERIVED_FROM edge lands on
     expands: str = ""                            # `research` points: the key of the SOURCE point (in the set the deliverable renders) this one grows from — a `REFERENCES` edge with role `expands`; "" = none
@@ -1244,8 +1246,6 @@ class PointNode:
             props["origins"] = [dict(o) for o in self.origins]
         if self.judged:
             props["judged"] = [dict(j) for j in self.judged]
-        if self.level > 0:
-            props["level"] = int(self.level)
         if self.provenance != "source":
             props["provenance"] = self.provenance
         if self.citations:
