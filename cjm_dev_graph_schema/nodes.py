@@ -28,8 +28,8 @@ from cjm_context_graph_primitives.provenance import SourceRef
 from .identity import (assertion_node_id, cell_node_id, check_node_id, code_module_node_id,
                        code_symbol_node_id, code_text_node_id, decision_node_id,
                        deliverable_type_node_id, entity_node_id, factslot_node_id, message_node_id,
-                       note_node_id, point_node_id, reference_node_id, section_node_id,
-                       series_node_id, session_node_id, topic_node_id)
+                       note_node_id, point_node_id, point_set_node_id, reference_node_id,
+                       section_node_id, series_node_id, session_node_id, topic_node_id)
 from .predicates import canonical_value, is_typed
 from .vocab import DevNodeKinds, DevRelations
 
@@ -1032,13 +1032,23 @@ class ReferenceNode:
     journaled with the link op, so a rebuild reproduces the Reference WITHOUT opening the
     sibling graph — the foreign graph is never written and never needed for replay. The
     review frontier opens the sibling read-only and compares the foreign node's live hash
-    against the observation the approval saw. Identity = (graph key, foreign id)."""
-    graph: str                                   # The sibling graph's config key (`sibling_graphs` name); identity input
-    foreign_id: str                              # The node id in that graph (verbatim); identity input
+    against the observation the approval saw. Identity = (graph key, foreign id).
+
+    A CAPTURED WEB PAGE is the same node with `graph` = `WEB` (the capture store of
+    d1b34704 (e); ruling 96be1528 (4)): `foreign_id` = the pinned url, `observed_hash` =
+    the content hash of the capture, `observed_at` = retrieved-at, `archive_url` = the
+    archive.org copy taken for a public deliverable. A `research` point's DERIVED_FROM
+    lands here exactly as a source point's lands on a segment — one fidelity chain, a
+    different Reference class — and the review frontier re-fetches to compare."""
+    WEB = "web"  # The `graph` key of a captured web page (no sibling db: the "graph" is the web, the foreign id the url)
+
+    graph: str                                   # The sibling graph's config key (`sibling_graphs` name), or `WEB`; identity input
+    foreign_id: str                              # The node id in that graph (verbatim) — a pinned url under `WEB`; identity input
     foreign_label: str = ""                      # The foreign node's label at observation (display + audit; content, not identity)
     title: str = ""                              # Display handle read off the foreign node at observation
-    observed_hash: str = ""                      # `foreign_content_hash` of the foreign node at observation ("sha256:…")
-    observed_at: Optional[float] = None          # When the observation was taken (verb time; replay carries the journaled one)
+    observed_hash: str = ""                      # `foreign_content_hash` of the foreign node at observation ("sha256:…"); the capture's content hash under `WEB`
+    observed_at: Optional[float] = None          # When the observation was taken (verb time; replay carries the journaled one); retrieved-at under `WEB`
+    archive_url: str = ""                        # `WEB` only: the archive.org copy of the capture ("" = none taken)
 
     @property
     def id(self) -> str:  # Deterministic node id
@@ -1061,8 +1071,11 @@ class ReferenceNode:
 
     def observation(self) -> Dict[str, Any]:  # The journal-carried observation (what replay needs)
         """The observation fields a `link` op journals so replay never opens the sibling."""
-        return {"graph": self.graph, "foreign_id": self.foreign_id, "foreign_label": self.foreign_label,
-                "title": self.title, "observed_hash": self.observed_hash, "observed_at": self.observed_at}
+        obs: Dict[str, Any] = {"graph": self.graph, "foreign_id": self.foreign_id, "foreign_label": self.foreign_label,
+                               "title": self.title, "observed_hash": self.observed_hash, "observed_at": self.observed_at}
+        if self.archive_url:
+            obs["archive_url"] = self.archive_url
+        return obs
 
     @classmethod
     def from_observation(cls, obs: Dict[str, Any]) -> "ReferenceNode":  # Rebuild from a journaled observation
@@ -1070,7 +1083,8 @@ class ReferenceNode:
         return cls(graph=str(obs.get("graph") or ""), foreign_id=str(obs.get("foreign_id") or ""),
                    foreign_label=str(obs.get("foreign_label") or ""), title=str(obs.get("title") or ""),
                    observed_hash=str(obs.get("observed_hash") or ""),
-                   observed_at=(float(obs["observed_at"]) if obs.get("observed_at") is not None else None))
+                   observed_at=(float(obs["observed_at"]) if obs.get("observed_at") is not None else None),
+                   archive_url=str(obs.get("archive_url") or ""))
 
     def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
         """Build the Reference node wire dict (root_kind=reference; no local provenance file)."""
@@ -1085,6 +1099,8 @@ class ReferenceNode:
         }
         if self.observed_at is not None:
             props["observed_at"] = self.observed_at
+        if self.archive_url:
+            props["archive_url"] = self.archive_url
         return {"id": self.id, "label": DevNodeKinds.REFERENCE, "properties": props, "sources": []}
 
 
@@ -1139,17 +1155,27 @@ class PointNode:
     Point it elaborates (ONE level: an `ELABORATES` edge child -> parent; the renderer nests
     the child as a sub-item; a parent never carries a parent of its own). Fidelity is by
     construction — a Point exists only as derived, and its DERIVED_FROM edges land on
-    cross-graph References to the segments. Identity = (deliverable Note, opaque key) so
-    re-render / re-order / re-parent / text edits keep the node."""
-    note_id: str                                 # The deliverable Note this point belongs to; identity input
+    cross-graph References to the segments.
+
+    Identity = (OWNER, opaque key), ruling 96be1528 (P): a source's points are the
+    source's points, so a SUBSTANCE point is owned by the PointSet of its (Source, unit)
+    and every deliverable that renders the unit shares it; a deliverable owns only its
+    OWN points — a `section` (the synthesized outline, with a `level`) and a `research`
+    point (`provenance` = research: citations in place of a segment run, ruling 96be1528
+    (4)). Re-render / re-order / re-parent / text edits / a re-home keep the node: every
+    cross-point field (`parent_key`, `refers_to`, `expands`, `judged`, `origins`) names
+    a KEY, never an id. Per-deliverable presentation of a shared point (a move, the
+    cross-reference verdicts) rides the deliverable's PLACED edge (`placed_edge`), never
+    the point; a point's ROLE (content / meta / aside) is a `point_role` FACT on it."""
+    owner_id: str                                # The node that OWNS the point (a PointSet for substance; the deliverable Note for its own section / research points); identity input
     key: str                                     # Opaque stable key (the accepted proposal id); identity input
     kind: str                                    # Point kind (open vocabulary; starter slate RECOMMENDED_POINT_KINDS)
-    text: str                                    # The telegraphic statement (verbatim for `quotation`)
+    text: str                                    # The telegraphic statement (verbatim for `quotation`; the title for `section`)
     ordinal: int = 0                             # Source-order position (pack position at accept; content, not identity)
     lead: str = ""                               # Optional lead term (rendered bold — the one permitted emphasis)
     heading: str = ""                            # The source section header the point falls under ("" = the unit's top)
     heading_index: int = 0                       # Order of that header within the unit (0 = before any header)
-    segment_ids: List[str] = field(default_factory=list)  # The sibling-graph Segment ids the point derives from (spine order)
+    segment_ids: List[str] = field(default_factory=list)  # The sibling-graph Segment ids the point derives from (spine order); empty on a `research` point
     start_time: Optional[float] = None           # Run start (source seconds), copied from the segments
     end_time: Optional[float] = None             # Run end (source seconds)
     attribution: str = ""                        # `quotation`: who is quoted (as the source names them)
@@ -1161,24 +1187,29 @@ class PointNode:
     refers_to: List[str] = field(default_factory=list)  # Keys of the Points this one leans on (a Q&A answer's back-links into the lecture body — ruling ba341c72 (2)); `REFERENCES` edges once those Points stand; the hook a later non-source placement pass moves a question by
     origins: List[Dict[str, Any]] = field(default_factory=list)  # Provenance of the merge that produced the point (ruling 1798a796 (3)): one entry per drafted row folded into it — {set_id, proposal_id, cell (arm/model), arm, model, window, from_i, to_i, kind, how (shown | matched | added | same | contains)}; the row's text is recoverable from its set by proposal id. A folded row is never deleted — it becomes an origin, so per-arm and per-model credit survives the fold
     judged: List[Dict[str, Any]] = field(default_factory=list)  # Recorded overlap judgements (ruling 1798a796 (1)): {key: the other Point's key, verdict: different | related} — a cross-origin pair sharing segments with no judgement leaves the draft unclean; the record rides the point so a re-render or a re-accept never re-opens it
+    level: int = 0                               # `section` points only (ruling 96be1528 (2)): the heading level — 1 = the top of the outline, 2 nests under the previous level-1 section (ingest refuses a 2 with no 1 before it); 0 = not a section. Membership stays order-derived to the next anchor at ANY level; render emits heading depth from it
+    provenance: str = "source"                   # `source` = derived from a segment run (the default); `research` = a RESEARCH point (ruling 96be1528 (4)): owned by the deliverable, no segment run, `citations` in place of a timestamp — the marker that keeps an expansion from being mistaken for the lecture (60681b4f)
+    citations: List[Dict[str, Any]] = field(default_factory=list)  # `research` points: the citation contract (d1b34704 (b)) — {url, location, snippet, retrieved_at, reference_id}: the url resolved and the snippet found at that location or the row is refused at ingest; `reference_id` = the captured page's Reference (ReferenceNode.WEB) the DERIVED_FROM edge lands on
+    expands: str = ""                            # `research` points: the key of the SOURCE point (in the set the deliverable renders) this one grows from — a `REFERENCES` edge with role `expands`; "" = none
     actor: str = "agent:session"                 # Who proposed the text (the accept records the confirming actor on the op)
 
     @property
     def id(self) -> str:  # Deterministic node id
-        """Deterministic node id (from (note, key))."""
-        return point_node_id(self.note_id, self.key)
+        """Deterministic node id (from (owner, key))."""
+        return point_node_id(self.owner_id, self.key)
 
     @property
     def parent_id(self) -> str:  # The parent Point's deterministic id ("" when top level)
-        """The parent Point's node id — same deliverable, the parent's key."""
-        return point_node_id(self.note_id, self.parent_key) if self.parent_key else ""
+        """The parent Point's node id — same owner, the parent's key."""
+        return point_node_id(self.owner_id, self.parent_key) if self.parent_key else ""
 
     def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
         """Build the Point node wire dict (root_kind=derived — substance derived from segments)."""
         props: Dict[str, Any] = {
             "name": (self.lead or self.text)[:80],
             "title": f"{self.kind}: {(self.lead + ' — ' if self.lead else '') + self.text}"[:160],
-            "note_id": self.note_id,
+            "owner_id": self.owner_id,
+            "note_id": self.owner_id,  # TRANSITIONAL (the re-home build 81d6e669): purenotes still reads a point's owner as `note_id`; dropped once it reads `owner_id`
             "key": self.key,
             "kind": self.kind,
             "text": self.text,
@@ -1213,11 +1244,20 @@ class PointNode:
             props["origins"] = [dict(o) for o in self.origins]
         if self.judged:
             props["judged"] = [dict(j) for j in self.judged]
+        if self.level > 0:
+            props["level"] = int(self.level)
+        if self.provenance != "source":
+            props["provenance"] = self.provenance
+        if self.citations:
+            props["citations"] = [dict(c) for c in self.citations]
+        if self.expands:
+            props["expands"] = self.expands
         return {"id": self.id, "label": DevNodeKinds.POINT, "properties": props, "sources": []}
 
-    def has_point_edge(self) -> Dict[str, Any]:  # HAS_POINT edge wire dict (note -> point)
-        """The membership edge from the deliverable Note (order rides the Point, not the edge)."""
-        return make_edge(self.note_id, self.id, DevRelations.HAS_POINT)
+    def has_point_edge(self) -> Dict[str, Any]:  # HAS_POINT edge wire dict (owner -> point)
+        """The membership edge from the OWNER — the PointSet for a substance point, the
+        deliverable Note for one of its own (order rides the Point, not the edge)."""
+        return make_edge(self.owner_id, self.id, DevRelations.HAS_POINT)
 
     def elaborates_edge(self) -> Optional[Dict[str, Any]]:  # ELABORATES edge wire dict (child -> parent), None at top level
         """The one-level nesting edge to the parent Point (the renderer's sub-item structure)."""
@@ -1228,21 +1268,108 @@ class PointNode:
     def refers_to_edges(
         self,
         standing_keys: Optional[List[str]] = None,      # Keys of the Points that already stand (None = every key in `refers_to`)
+        target_owner_id: Optional[str] = None,          # The owner the referred keys resolve under (None = this point's own owner; a deliverable-owned point leaning on set points names the set)
     ) -> List[Dict[str, Any]]:  # REFERENCES edge wire dicts (this point -> each Point it leans on)
         """The back-link edges to the Points this one leans on (references are edges). A key
         whose Point does not stand yet gets no edge — it stays in `refers_to` and the edge
         lands when a later accept of this point finds it."""
+        owner = target_owner_id or self.owner_id
         keys = [k for k in self.refers_to if standing_keys is None or k in set(standing_keys)]
-        return [make_edge(self.id, point_node_id(self.note_id, k), DevRelations.REFERENCES,
+        return [make_edge(self.id, point_node_id(owner, k), DevRelations.REFERENCES,
                           properties={"role": "refers_to"}) for k in keys]
+
+    def expands_edge(
+        self,
+        target_owner_id: Optional[str] = None,  # The owner of the expanded source point (None = this point's own owner; a research point names the set its deliverable renders)
+    ) -> Optional[Dict[str, Any]]:  # REFERENCES edge wire dict with role `expands`, None when the point expands nothing
+        """The edge from a `research` point to the source point it grows from (ruling
+        96be1528 (4)) — a REFERENCES edge distinguished by its role, so the review frontier
+        and the render read 'expansion of' off the graph, never off prose."""
+        if not self.expands:
+            return None
+        return make_edge(self.id, point_node_id(target_owner_id or self.owner_id, self.expands),
+                         DevRelations.REFERENCES, properties={"role": "expands"})
 
     def derived_from_edges(
         self,
-        reference_ids: List[str],  # The local Reference stand-ins for the point's segments (cross-graph seam)
+        reference_ids: List[str],  # The local Reference stand-ins for the point's segments (cross-graph seam) — or, on a `research` point, for its captured pages (ReferenceNode.WEB)
     ) -> List[Dict[str, Any]]:  # DERIVED_FROM edge wire dicts, spine order on the `order` property
-        """One `DERIVED_FROM` edge per segment Reference — the provenance the review frontier follows."""
+        """One `DERIVED_FROM` edge per Reference — the provenance the review frontier follows,
+        the same edge for a segment run and for a cited capture."""
         return [make_edge(self.id, rid, DevRelations.DERIVED_FROM, properties={"order": i})
                 for i, rid in enumerate(reference_ids)]
+
+
+@dataclass
+class PointSetNode:
+    """A Source unit's POINT STORE (ruling 96be1528 (P)): the node that OWNS the substance
+    Points of one (Source, unit), so a source's points are the source's points — several
+    typed deliverables (the standalone lecture resource, the community distillation, a
+    cleaned transcript) RENDER from ONE set and never copy a point. Which of the set's
+    points a deliverable shows is derived at render from the `point_role` facts on the
+    points and the type's role map; where it shows them is the deliverable's own (its
+    `section` Points + PLACED edges). Identity = (sibling graph key, Source id, unit key)
+    — the unit address the Points' `unit` snapshot names (a book chapter; a lecture is one
+    unit, key "") — so a re-draft, a re-accept and a second deliverable converge on the
+    same set. The set carries the unit snapshot for display; the substance rides the
+    Points (HAS_POINT set -> point)."""
+    graph: str                                   # The sibling graph's config key the Source lives in; identity input
+    source_id: str                               # The Source node id in that graph (verbatim); identity input
+    unit: str = ""                               # The unit key within the Source ("" = the whole Source); identity input
+    title: str = ""                              # Display handle (the Source / unit title at minting; content, not identity)
+    unit_address: Dict[str, Any] = field(default_factory=dict)  # The structure-map address as the pack snapshot gives it ({source_id, unit, title, part, chapter…})
+    actor: str = "agent:session"                 # Who minted the set (the first accept into it)
+
+    @property
+    def id(self) -> str:  # Deterministic node id
+        """Deterministic node id (from (graph key, Source id, unit key))."""
+        return point_set_node_id(self.graph, self.source_id, self.unit)
+
+    def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
+        """Build the PointSet node wire dict (root_kind=derived — a store of derived substance)."""
+        label = self.title or f"{self.source_id[:8]}{('/' + self.unit) if self.unit else ''}"
+        props: Dict[str, Any] = {
+            "name": label[:80],
+            "title": f"points: {label}"[:160],
+            "graph": self.graph,
+            "source_id": self.source_id,
+            "unit": self.unit,
+            "actor": self.actor,
+            "root_kind": "derived",
+        }
+        if self.unit_address:
+            props["unit_address"] = dict(self.unit_address)
+        return {"id": self.id, "label": DevNodeKinds.POINT_SET, "properties": props, "sources": []}
+
+    def renders_edge(
+        self,
+        note_id: str,  # The deliverable Note that renders this set
+    ) -> Dict[str, Any]:  # RENDERS edge wire dict (note -> set)
+        """The edge a deliverable Note asserts to draw its body from this set."""
+        return make_edge(note_id, self.id, DevRelations.RENDERS)
+
+
+def placed_edge(
+    point_id: str,                              # The placed Point's node id (a substance point in the set, or one of the deliverable's own)
+    section_id: str,                            # The deliverable-owned `section` Point's node id the point is placed in
+    after: Optional[str] = None,                # The key of the point it renders after ("" = the section's end; None = no move — the order-derived slot)
+    refs_shown: Optional[List[str]] = None,     # The cross-reference verdicts (ruling 96be1528 (7)): the `refers_to` keys that render in this deliverable (None = every cross-section link)
+) -> Dict[str, Any]:  # PLACED edge wire dict (point -> section point)
+    """The deliverable's PER-POINT OVERLAY on a point it renders (ruling 96be1528 (3)/(7)).
+
+    A substance point is SHARED by every deliverable that renders its set, so nothing one
+    deliverable decides about it — a move beside its target topic, which of its back-links
+    earn their place — may ride the point. It rides this edge instead: the target is a
+    `section` Point the deliverable owns, so the edge is per-deliverable by construction;
+    `after` overrides order-derived membership (a question moves with its subtree);
+    `refs_shown` is what the render intersects `refers_to` with. The placement and the
+    cross-reference passes confirm one journaled record each, replayed as this edge."""
+    props: Dict[str, Any] = {}
+    if after is not None:
+        props["after"] = after
+    if refs_shown is not None:
+        props["refs_shown"] = list(refs_shown)
+    return make_edge(point_id, section_id, DevRelations.PLACED, properties=props)
 
 
 @dataclass

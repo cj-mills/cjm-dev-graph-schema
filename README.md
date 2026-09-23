@@ -34,7 +34,8 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `factslot_node_id` _function_ — Fact-slot identity = (subject, predicate).
 - `message_node_id` _function_ — Message identity = its capture-source record uuid.
 - `note_node_id` _function_ — Note identity = its stable slug.
-- `point_node_id` _function_ — Point identity = (deliverable, point key) — never its text, kind, or position.
+- `point_node_id` _function_ — Point identity = (owner, point key) — never its text, kind, or position.
+- `point_set_node_id` _function_ — PointSet identity = (sibling graph key, Source id, unit key) — the source unit whose
 - `reference_node_id` _function_ — Reference identity = (sibling graph key, foreign node id).
 - `section_node_id` _function_ — Section identity = (enclosing Note, heading anchor slug).
 - `series_node_id` _function_ — Series identity = its stable key.
@@ -56,6 +57,7 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `MessageNode` _class_ — A discourse EVENT on a session spine (DEC 91c47b4a): one user-facing message.
 - `NoteNode` _class_ — The coarse-tier document node: one decomposed markdown/memory file.
 - `PointNode` _class_ — A typed deliverable's SUBSTANCE atom (ruling a7262fe7): the smallest statement
+- `PointSetNode` _class_ — A Source unit's POINT STORE (ruling 96be1528 (P)): the node that OWNS the substance
 - `ReferenceNode` _class_ — A LOCAL stand-in for a node in a sibling graph — the cross-graph reference (0154f5e4).
 - `SectionNode` _class_ — One heading-delimited section of a Note's body — the navigable unit + anchor target.
 - `SeriesNode` _class_ — An ordered collection/progression a note belongs to (a Quarto series, …).
@@ -64,6 +66,7 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `foreign_content_hash` _function_ — The content a Reference OBSERVES: the foreign node's label + its properties, canonically
 - `foreign_display_title` _function_ — Best-effort display handle for a foreign node: title/name/text-ish fields first,
 - `parse_foreign_ref` _function_ — Split a `<graph key>:<id>` reference token; None for a plain local id / anything else.
+- `placed_edge` _function_ — The deliverable's PER-POINT OVERLAY on a point it renders (ruling 96be1528 (3)/(7)).
 
 ### `cjm_dev_graph_schema.predicates`
 

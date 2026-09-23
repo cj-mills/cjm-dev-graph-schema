@@ -43,6 +43,7 @@ class DevNodeKinds:
     REFERENCE = "Reference"     # A local stand-in for a node in a SIBLING graph (graph key + foreign id + the content hash last observed there) — the cross-graph reference seam (0154f5e4); edges land on it, the foreign graph is never written
     POINT = "Point"             # A typed deliverable's SUBSTANCE atom (ruling a7262fe7): telegraphic text of one kind, derived from a named segment run; a Note's Sections are RENDERED from its Points, never authored
     DELIVERABLE_TYPE = "DeliverableType"  # A deliverable type's profile as graph DATA: information policy (a stratum query), presentation policy (renderings + kinds), production procedure; a Note binds to one via the `deliverable_type` fact
+    POINT_SET = "PointSet"      # A Source unit's POINT STORE (ruling 96be1528 (P)): OWNS the substance Points of one (Source, unit) so several typed deliverables RENDER from the same points — the points belong to the source, membership + placement to the deliverable
 
     @classmethod
     def all(cls) -> list:  # All dev-schema node labels
@@ -51,7 +52,7 @@ class DevNodeKinds:
                 cls.THREAD, cls.SESSION, cls.PROCEDURE, cls.ENTITY,
                 cls.CODE_MODULE, cls.CODE_SYMBOL, cls.CELL, cls.CODE_TEXT,
                 cls.TOPIC, cls.SERIES, cls.SECTION, cls.CHECK, cls.MESSAGE, cls.REFERENCE,
-                cls.POINT, cls.DELIVERABLE_TYPE]
+                cls.POINT, cls.DELIVERABLE_TYPE, cls.POINT_SET]
 
 
 class DevRelations:
@@ -84,8 +85,10 @@ class DevRelations:
     CHECKS = "CHECKS"              # Check -> the work item whose CLOSURE it gates (the DoD side; dedicated like GATED_BY, which gates STARTING)
     TESTS = "TESTS"                # A test CodeSymbol / test Cell -> the package CodeSymbol it exercises (the code<->test link; coverage-audit substrate)
     AMENDS = "AMENDS"              # An amendment/annotation Message -> the Message it amends (the scratchpad correction flow)
-    HAS_POINT = "HAS_POINT"        # Note -> a Point of its substance (membership; source order rides the Point's `ordinal`/`start_time`, the Sections are rendered from the Points — ruling a7262fe7)
+    HAS_POINT = "HAS_POINT"        # The OWNER -> a Point it owns (membership; ruling 96be1528 (P)): a PointSet -> a substance point, a deliverable Note -> one of its own (a `section` or a `research` point); source order rides the Point's `ordinal`/`start_time`, the Sections are rendered from the Points — ruling a7262fe7
     ELABORATES = "ELABORATES"      # Point -> the Point it elaborates (ONE level of nesting — ruling e1fd4d64 (H): a child renders as a sub-item under its parent; a parent never has a parent)
+    RENDERS = "RENDERS"            # Note -> the PointSet its body renders from (ruling 96be1528 (P)); WHICH of the set's points it shows is derived from the `point_role` facts + the type's role map, never stored
+    PLACED = "PLACED"              # Point -> the deliverable-owned `section` Point this deliverable places it in (ruling 96be1528 (3)/(7)): the deliverable's PER-POINT OVERLAY on a shared substance point — `after` (the key it follows; "" = the section's end) overrides order-derived membership, `refs_shown` carries the cross-reference verdicts; per-deliverable data never rides the shared point
 
     # Overlay relations this domain reuses (owned by the layer; re-exposed for convenience).
     SUPERSEDES = OverlayRelations.SUPERSEDES
@@ -100,6 +103,7 @@ class DevRelations:
                 cls.DEFINES, cls.IMPORTS, cls.CALLS, cls.USES, cls.CONTAINS, cls.DOCUMENTS,
                 cls.TAGGED, cls.IN_SERIES, cls.HAS_SECTION, cls.GATED_BY, cls.BLOCKED_BY,
                 cls.CHECKS, cls.TESTS, cls.AMENDS, cls.HAS_POINT, cls.ELABORATES,
+                cls.RENDERS, cls.PLACED,
                 cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 

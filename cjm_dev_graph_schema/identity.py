@@ -210,19 +210,39 @@ def reference_node_id(
     return derive_node_id("reference", graph_key, foreign_id)
 
 
+def point_set_node_id(
+    graph_key: str,  # The sibling graph's config key the Source lives in (the `sibling_graphs` name)
+    source_id: str,  # The Source node id IN that graph (verbatim)
+    unit: str = "",  # The unit key within the Source ("" = the whole Source: a lecture; a book chapter carries its chapter key)
+) -> str:  # Deterministic PointSet node id
+    """PointSet identity = (sibling graph key, Source id, unit key) — the source unit whose
+    points it owns (ruling 96be1528 (P)).
+
+    A PointSet is the node the substance Points of one (Source, unit) hang from, so the
+    points belong to the SOURCE and every deliverable that renders the unit converges on
+    the same set: a re-draft, a re-accept and a second deliverable type mint no copy. The
+    address is the foreign one (the Source is a sibling-graph node, like a Reference's),
+    never the set's content or the deliverable that first accepted into it."""
+    return derive_node_id("point_set", graph_key, source_id, unit)
+
+
 def point_node_id(
-    note_id: str,  # The deliverable Note the point belongs to
-    key: str,      # The point's stable key: the accepted proposal's id, or a uuid minted at accept
+    owner_id: str,  # The node that OWNS the point: the PointSet of its (Source, unit) for a substance point; the deliverable Note for one of the deliverable's own (a `section` or a `research` point)
+    key: str,       # The point's stable key: the accepted proposal's id, or a uuid minted at accept
 ) -> str:  # Deterministic Point node id
-    """Point identity = (deliverable, point key) — never its text, kind, or position.
+    """Point identity = (owner, point key) — never its text, kind, or position.
 
     A Point is a typed deliverable's substance atom (ruling a7262fe7): its identity must
     survive re-rendering, re-ordering and a text edit, so it derives from the opaque key
-    the accept op minted (the proposal id it came from) and the Note it belongs to — not
+    the accept op minted (the proposal id it came from) and the node that owns it — not
     from a Section (whose identity is the rendered document's) and not from the segment
-    run (two points may legitimately derive from the same run). Replay carries the key,
-    so a rebuild lands the same id."""
-    return derive_node_id("point", note_id, key)
+    run (two points may legitimately derive from the same run). Ruling 96be1528 (P): a
+    SOURCE'S points are the source's points, so the owner of a substance point is the
+    PointSet of its (Source, unit) — several deliverables render from one set — while a
+    deliverable owns only its own points (sections, research). Replay carries the key,
+    so a rebuild lands the same id; re-homing a point changes its owner and nothing else
+    (`refers_to`, `parent_key`, `judged`, `origins` all name KEYS)."""
+    return derive_node_id("point", owner_id, key)
 
 
 def deliverable_type_node_id(

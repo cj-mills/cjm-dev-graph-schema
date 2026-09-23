@@ -77,6 +77,19 @@ REVIEW_VERDICT = "review_verdict"
 # type is an explicit supersession, never a silent newer-wins.
 DELIVERABLE_TYPE = "deliverable_type"
 
+# A Point's ROLE in the deliverables that render it (ruling 96be1528 (1)): `content` (the
+# outline), `meta` (topic, motivation, goals, speaker introductions — the standalone type's
+# front section), `aside` (excluded by the standalone, kept in source order by the community
+# distillation). Asserted on the SHARED substance point — the classification is the point's,
+# what each type does with it is the type's role map — proposed by the placement pass and
+# confirmed by the human; absent = inherit the parent's, else `content`. Named `point_role`
+# because `role` is the register vocabulary (lock / pin / craft …) on Notes.
+POINT_ROLE = "point_role"
+POINT_ROLE_CONTENT = "content"
+POINT_ROLE_META = "meta"
+POINT_ROLE_ASIDE = "aside"
+POINT_ROLES = (POINT_ROLE_CONTENT, POINT_ROLE_META, POINT_ROLE_ASIDE)
+
 # The APPROVAL CLASS (the review-frontier's roots): predicate -> the values that count as an
 # approval (None = any value). A born `draft` is not an approval; `reviewed`/`published` are.
 # Schema DATA, so a future `approved`/`reviewed` predicate joins here, never in the projector.
@@ -130,6 +143,9 @@ PREDICATES = {
     # Typed so a disagreement is a HARD contradiction (one deliverable, one type) and a
     # re-type is an explicit supersession.
     DELIVERABLE_TYPE: Predicate(DELIVERABLE_TYPE, SLUG, STABLE, ORDER_NONE),
+    # A point's role (ruling 96be1528 (1)): a closed slate, UNORDERED so a re-role is an explicit
+    # supersession — an un-superseded flip (content beside aside) is a HARD contradiction.
+    POINT_ROLE: Predicate(POINT_ROLE, ENUM, CHANGES, ORDER_NONE),
     # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
     # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
     # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives
