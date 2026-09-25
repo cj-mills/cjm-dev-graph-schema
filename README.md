@@ -26,7 +26,7 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `cell_node_id` _function_ — Cell identity = (notebook module, stable cell key).
 - `check_node_id` _function_ — Check identity = (its work item, canonical text) — the same wording on two
 - `code_module_node_id` _function_ — Code-module identity = (repo_key, module_path).
-- `code_symbol_node_id` _function_ — Code-symbol identity = (enclosing module, qualified name).
+- `code_symbol_node_id` _function_ — Code-symbol identity = (module at birth, qualified name at birth[, generation]).
 - `code_text_node_id` _function_ — Code-text-region identity = (module, region key).
 - `decision_node_id` _function_ — Decision identity = its canonical statement (idempotent re-records).
 - `deliverable_type_node_id` _function_ — Deliverable-type identity = its slug, so re-minting the profile UPSERTS one node
