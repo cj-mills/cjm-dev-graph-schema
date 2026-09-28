@@ -90,6 +90,14 @@ POINT_ROLE_META = "meta"
 POINT_ROLE_ASIDE = "aside"
 POINT_ROLES = (POINT_ROLE_CONTENT, POINT_ROLE_META, POINT_ROLE_ASIDE)
 
+# A deliverable's public PATH on the site (ruling 96aff70e: a URL is a fact with history):
+# the active value is where the page lives now, every superseded value is a path it lived at
+# before, and the site build projects a redirect from each superseded path to the active one.
+# Values are the path verbatim as the site serves it (`/posts/<slug>/`; a pre-Quarto alias as
+# its front matter wrote it), never normalized, since normalizing would move the redirect.
+# Named `site_path` because a Note's `path` property is its source FILE.
+SITE_PATH = "site_path"
+
 # The APPROVAL CLASS (the review-frontier's roots): predicate -> the values that count as an
 # approval (None = any value). A born `draft` is not an approval; `reviewed`/`published` are.
 # Schema DATA, so a future `approved`/`reviewed` predicate joins here, never in the projector.
@@ -146,6 +154,11 @@ PREDICATES = {
     # A point's role (ruling 96be1528 (1)): a closed slate, UNORDERED so a re-role is an explicit
     # supersession — an un-superseded flip (content beside aside) is a HARD contradiction.
     POINT_ROLE: Predicate(POINT_ROLE, ENUM, CHANGES, ORDER_NONE),
+    # A deliverable's public path (ruling 96aff70e): it legitimately CHANGES (a move), but
+    # UNORDERED, so a move is an explicit supersession and two active paths are a HARD
+    # contradiction (one page, one current URL; the redirect projection must never fork).
+    # A back-filled prior path is written born superseded (`--superseded-by`).
+    SITE_PATH: Predicate(SITE_PATH, FREETEXT, CHANGES, ORDER_NONE),
     # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
     # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
     # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives

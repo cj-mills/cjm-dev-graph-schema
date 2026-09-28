@@ -6,7 +6,7 @@ from cjm_dev_graph_schema import predicates as P
 def test_typed_predicate_registry():
     assert set(P.PREDICATES) == {"rename-disposition", "version", "aka", "task_state",
                                  "priority", "model-status", "publish_state", "review_verdict",
-                                 "derived_from", "deliverable_type", "point_role"}
+                                 "derived_from", "deliverable_type", "point_role", "site_path"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -192,3 +192,14 @@ def test_derived_from_is_multivalued_freetext_set():
     assert not P.active_contradiction("derived_from", ["transcription:aaa", "transcription:bbb"])
     assert not P.soft_conflict("derived_from", ["transcription:aaa", "transcription:bbb"])
     assert P.canonical_value("derived_from", " transcription:AAA ") == "transcription:AAA"  # freetext: case kept
+
+
+def test_site_path_is_unordered_case_preserving_and_hard_conflicts():
+    # Ruling 96aff70e: one page, one current URL; a move is an explicit supersession, so two
+    # active paths are a HARD contradiction. Paths are case-sensitive and never normalized.
+    p = P.get_predicate(P.SITE_PATH)
+    assert p is not None and not P.is_ordered(P.SITE_PATH) and not P.is_multivalued(P.SITE_PATH)
+    assert P.canonical_value(P.SITE_PATH, " /Notes-on-Advanced-Git-Tools/ ") == "/Notes-on-Advanced-Git-Tools/"
+    assert P.values_conflict(P.SITE_PATH, "/posts/x/", "/Notes-on-X/")
+    assert not P.values_conflict(P.SITE_PATH, "/posts/x/", "/posts/x/")
+    assert P.active_contradiction(P.SITE_PATH, ["/posts/x/", "/posts/y/"])
