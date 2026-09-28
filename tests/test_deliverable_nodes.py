@@ -185,3 +185,14 @@ def test_deliverable_type_predicate_is_a_stable_slug_and_hard_conflicts():
     assert values_conflict(DELIVERABLE_TYPE, "pure-notes", "research-report")
     assert not values_conflict(DELIVERABLE_TYPE, "pure-notes", "Pure-Notes")
     assert active_contradiction(DELIVERABLE_TYPE, ["pure-notes", "essay"])
+
+
+def test_deliverable_type_carries_kind_and_origin_once_declared():
+    # Design amendment c64e07e7: the navigation kind and the origin are fields of the TYPE.
+    from cjm_dev_graph_schema.predicates import DELIVERABLE_KINDS, DELIVERABLE_ORIGINS
+    t = DeliverableTypeNode(key="archive-tutorial", title="Archive tutorial", kind="tutorial", origin="archive")
+    p = t.to_graph_node()["properties"]
+    assert (p["kind"], p["origin"]) == ("tutorial", "archive")
+    assert "kind" not in DeliverableTypeNode(key="pure-notes").to_graph_node()["properties"]  # undeclared keeps its shape
+    assert {"tutorial", "notes", "log", "work", "site"} == set(DELIVERABLE_KINDS)
+    assert {"archive", "born"} == set(DELIVERABLE_ORIGINS)

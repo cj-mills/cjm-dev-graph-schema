@@ -77,6 +77,17 @@ REVIEW_VERDICT = "review_verdict"
 # type is an explicit supersession, never a silent newer-wins.
 DELIVERABLE_TYPE = "deliverable_type"
 
+# A deliverable type's KIND and ORIGIN (design amendment c64e07e7): the kind is the site's
+# navigation unit (a tutorial and a set of notes sit under different hubs whatever their
+# making), the origin how deliverables of the type came to be — `archive` = authored before
+# the graph and ingested lossless, public as authored; `born` = produced on the graph, public
+# only once its publish_state is `published`. Both are fields of the TYPE, never facts on
+# each deliverable, so a post's kind is read through its type.
+DELIVERABLE_KINDS = ("tutorial", "notes", "log", "work", "site")
+DELIVERABLE_ORIGINS = ("archive", "born")
+ORIGIN_ARCHIVE = "archive"
+ORIGIN_BORN = "born"
+
 # A Point's ROLE in the deliverables that render it (ruling 96be1528 (1)): `content` (the
 # outline), `meta` (topic, motivation, goals, speaker introductions — the standalone type's
 # front section), `aside` (excluded by the standalone, kept in source order by the community

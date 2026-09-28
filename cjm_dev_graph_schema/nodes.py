@@ -1441,6 +1441,8 @@ class DeliverableTypeNode:
     presentation_policy: Dict[str, Any] = field(default_factory=dict)  # {renderings: {name: rules}, kinds: {kind: gloss}, emphasis, section_length_target}
     production_procedure: List[str] = field(default_factory=list)      # The lane's ordered steps (prose, one per step)
     actor: str = "agent:session"                             # Who minted / last updated the profile
+    kind: str = ""                                           # The navigation kind (predicates.DELIVERABLE_KINDS; "" = not yet declared)
+    origin: str = ""                                         # archive | born (predicates.DELIVERABLE_ORIGINS; "" = not yet declared)
 
     @property
     def id(self) -> str:  # Deterministic node id
@@ -1460,5 +1462,9 @@ class DeliverableTypeNode:
             "actor": self.actor,
             "root_kind": "asserted",
         }
+        if self.kind:      # only once declared, so a type minted before c64e07e7 keeps its shape
+            props["kind"] = self.kind
+        if self.origin:
+            props["origin"] = self.origin
         return {"id": self.id, "label": DevNodeKinds.DELIVERABLE_TYPE, "properties": props,
                 "sources": []}
