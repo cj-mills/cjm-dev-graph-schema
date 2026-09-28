@@ -67,6 +67,8 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `foreign_display_title` _function_ — Best-effort display handle for a foreign node: title/name/text-ish fields first,
 - `parse_foreign_ref` _function_ — Split a `<graph key>:<id>` reference token; None for a plain local id / anything else.
 - `placed_edge` _function_ — The deliverable's PER-POINT OVERLAY on a point it renders (ruling 96be1528 (3)/(7)).
+- `series_member_edge` _function_ — One series membership with its AUTHORED position (DEC 72d669c5 (4)).
+- `site_link_edge` _function_ — An in-body site link, RESOLVED (DEC 72d669c5 (1)): the post-replay resolve pass mints
 
 ### `cjm_dev_graph_schema.predicates`
 

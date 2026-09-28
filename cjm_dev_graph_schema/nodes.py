@@ -105,7 +105,7 @@ class NoteNode:
     references: List[str] = field(default_factory=list)  # Slugs this note links to (`[[link]]`)
     metadata: Dict[str, Any] = field(default_factory=dict)  # Extra frontmatter carried verbatim
     categories: List[str] = field(default_factory=list)  # Normalized category/tag keys -> TAGGED edges to Topic nodes
-    series_refs: List[str] = field(default_factory=list)  # Series keys this note belongs to -> IN_SERIES edges
+    site_refs: List[str] = field(default_factory=list)   # Verbatim in-body site-link targets (series pages today) the post-replay resolve pass maps through site_path facts (DEC 72d669c5) — never membership
     aliases: List[str] = field(default_factory=list)     # Alternate identities (old URLs/slugs) resolving to this note
     cross_post_refs: List[Tuple[str, str]] = field(default_factory=list)  # (target permalink slug, section anchor) cross-post links -> REFERENCES edges
     sections: List["SectionNode"] = field(default_factory=list)  # The note's body decomposed into ordered Section nodes (when decomposed; emitted by corpus_graph_elements)
@@ -129,8 +129,8 @@ class NoteNode:
             props["note_type"] = self.note_type
         if self.categories:
             props["categories"] = list(self.categories)
-        if self.series_refs:
-            props["series_refs"] = list(self.series_refs)
+        if self.site_refs:
+            props["site_refs"] = list(self.site_refs)
         if self.aliases:
             props["aliases"] = list(self.aliases)
         if self.metadata:
@@ -202,16 +202,6 @@ class NoteNode:
         return [make_edge(self.id, topic_node_id(c), DevRelations.TAGGED)
                 for c in self.categories]
 
-    def series_edges(self) -> List[Dict[str, Any]]:  # IN_SERIES edge wire dicts
-        """One `IN_SERIES` edge per series this note belongs to.
-
-        Membership only (v1): the post declares which series it is in (a callout /
-        frontmatter link); the ORDER within the series is known from the series-def
-        listing, not the post, so it rides an `order` edge property populated later
-        (reserve-up-front: the relation supports ordering, emission is progressive)."""
-        return [make_edge(self.id, series_node_id(s), DevRelations.IN_SERIES)
-                for s in self.series_refs]
-
 
 @dataclass
 class TopicNode:
@@ -246,13 +236,19 @@ class TopicNode:
 class SeriesNode:
     """An ordered collection/progression a note belongs to (a Quarto series, …).
 
-    Asserted-root, shared across its member notes via `IN_SERIES` (each member's
-    edge converges on this one node by the stable key). First-class because
-    `series ≈ ordered progression` is the other audience-projection input
-    (a guided path through notes); the member ORDER lives on the IN_SERIES edges
-    (populated from the series-def listing, not the members)."""
-    key: str                    # Durable series key (the identity input; e.g. "education-notes")
+    Asserted-root and BORN ON-GRAPH (DEC 72d669c5): minted by the journaled `series` op,
+    never by the harvester — an in-body link to a series page is a cross-reference, not
+    membership (ruling 0f9ee9a8 (2)). Shared across its member notes via `IN_SERIES` (each
+    member's edge converges on this one node by the stable key). First-class because
+    `series ≈ ordered progression` is the other audience-projection input (a guided path
+    through notes); the member ORDER is authored intent on the IN_SERIES edges
+    (`series_member_edge`'s `after`), never derived from dates. The page's public path is a
+    `site_path` fact on this node, like a post's."""
+    key: str                    # Durable series key (the identity input; the page's file stem, e.g. "fastai-book-notes")
     title: str = ""             # Display title (defaults to the key when unset)
+    description: str = ""       # The page's one-line description
+    image: str = ""             # The page's preview image (site-relative, verbatim)
+    date: str = ""              # The page's own date (verbatim front matter; "" when the page has none)
 
     @property
     def id(self) -> str:  # Deterministic node id
@@ -261,13 +257,44 @@ class SeriesNode:
 
     def to_graph_node(self) -> Dict[str, Any]:  # Node wire dict
         """Build the Series node wire dict (root_kind=asserted; no provenance file)."""
+        props: Dict[str, Any] = {"key": self.key, "title": self.title or self.key,
+                                 "root_kind": "asserted"}
+        for k in ("description", "image", "date"):
+            if getattr(self, k):
+                props[k] = getattr(self, k)
         return {
             "id": self.id,
             "label": DevNodeKinds.SERIES,
-            "properties": {"key": self.key, "title": self.title or self.key,
-                           "root_kind": "asserted"},
+            "properties": props,
             "sources": [],
         }
+
+
+def series_member_edge(
+    note_id: str,     # The member Note's node id
+    series_id: str,   # The Series node id
+    after: str = "",  # The node id of the member it follows ("" = the series' first member)
+) -> Dict[str, Any]:  # IN_SERIES edge wire dict (note -> series), `after` always present
+    """One series membership with its AUTHORED position (DEC 72d669c5 (4)).
+
+    The order is intent, never derived from dates: each member names the member it follows,
+    the relative form the PLACED overlay's `after` uses, so an insert at the head touches two
+    edges and nothing renumbers. The position belongs to the membership, not the post, so one
+    post can sit at a different place in each series it belongs to. The edge id is
+    deterministic on the triple, so a re-placement lands by delete + extend."""
+    return make_edge(note_id, series_id, DevRelations.IN_SERIES, properties={"after": after})
+
+
+def site_link_edge(
+    note_id: str,    # The linking Note's node id
+    target_id: str,  # The node holding the linked page's site_path (a Series, a topic-listing Lens, …)
+) -> Dict[str, Any]:  # REFERENCES edge wire dict carrying the `site_link` marker
+    """An in-body site link, RESOLVED (DEC 72d669c5 (1)): the post-replay resolve pass mints
+    one per (note, page) from the note's verbatim `site_refs` and the site_path facts.
+
+    A cross-reference, never membership (ruling 0f9ee9a8 (4)); the `site_link` marker tells
+    it from wiki-link and cross-post REFERENCES, so the pass reconciles exactly its own edges."""
+    return make_edge(note_id, target_id, DevRelations.REFERENCES, properties={"site_link": True})
 
 
 @dataclass

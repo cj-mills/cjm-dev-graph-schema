@@ -4,7 +4,7 @@ from cjm_context_graph_layer.grammar import SpineRelations
 from cjm_dev_graph_schema.identity import (note_node_id, section_node_id,
                                            series_node_id, topic_node_id)
 from cjm_dev_graph_schema.nodes import (NoteNode, SectionNode, SeriesNode,
-                                        TopicNode)
+                                        series_member_edge, site_link_edge, TopicNode)
 from cjm_dev_graph_schema.vocab import DevNodeKinds, DevRelations
 
 
@@ -56,7 +56,7 @@ def test_optional_fields_omitted_when_empty():
     assert "note_type" not in node["properties"]
     assert "metadata" not in node["properties"]
     assert "categories" not in node["properties"]
-    assert "series_refs" not in node["properties"]
+    assert "site_refs" not in node["properties"]
 
 
 # --- Increment 2: facet/relationship surface ---------------------------------
@@ -71,11 +71,22 @@ def test_tagged_edges_target_shared_topic_ids():
     assert other["target_id"] == topic_node_id("pytorch")
 
 
-def test_series_edges_membership():
-    edges = _note(series_refs=["education-notes"]).series_edges()
-    assert len(edges) == 1
-    assert edges[0]["relation_type"] == DevRelations.IN_SERIES
-    assert edges[0]["target_id"] == series_node_id("education-notes")
+def test_series_member_edge_carries_the_authored_position():
+    # Membership is journaled intent with its position (DEC 72d669c5 (4)): `after` names the
+    # member it follows, "" = the first; the id is the triple, so a move re-lands the edge.
+    first = series_member_edge(note_node_id("a"), series_node_id("s"))
+    second = series_member_edge(note_node_id("b"), series_node_id("s"), after=note_node_id("a"))
+    assert first["relation_type"] == second["relation_type"] == DevRelations.IN_SERIES
+    assert first["properties"] == {"after": ""}
+    assert second["properties"] == {"after": note_node_id("a")}
+    moved = series_member_edge(note_node_id("b"), series_node_id("s"))
+    assert moved["id"] == second["id"]
+
+
+def test_site_link_edge_is_a_marked_reference():
+    e = site_link_edge(note_node_id("a"), series_node_id("s"))
+    assert e["relation_type"] == DevRelations.REFERENCES
+    assert e["target_id"] == series_node_id("s") and e["properties"] == {"site_link": True}
 
 
 def test_cross_post_edges_anchor_resolves_to_section_id():
@@ -101,10 +112,10 @@ def test_cross_post_alias_resolution():
 
 
 def test_facets_stored_on_node_when_present():
-    node = _note(categories=["pytorch"], series_refs=["education-notes"],
+    node = _note(categories=["pytorch"], site_refs=["/series/notes/education-notes.html"],
                  aliases=["/posts/old-url/"]).to_graph_node()
     assert node["properties"]["categories"] == ["pytorch"]
-    assert node["properties"]["series_refs"] == ["education-notes"]
+    assert node["properties"]["site_refs"] == ["/series/notes/education-notes.html"]
     assert node["properties"]["aliases"] == ["/posts/old-url/"]
 
 
@@ -124,6 +135,11 @@ def test_series_node_shape_and_identity():
     assert s.id == series_node_id("education-notes")
     assert node["label"] == DevNodeKinds.SERIES
     assert node["properties"]["title"] == "Education Notes"
+    assert "description" not in node["properties"] and "image" not in node["properties"]
+    page = SeriesNode(key="k", title="T", description="D", image="./preview-images/k.png",
+                      date="2023-10-19").to_graph_node()["properties"]
+    assert (page["description"], page["image"], page["date"]) == ("D", "./preview-images/k.png",
+                                                                 "2023-10-19")
 
 
 # --- Increment 4: Section nodes (body content on-graph) -----------------------

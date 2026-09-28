@@ -78,7 +78,7 @@ class DevRelations:
     CONTAINS = "CONTAINS"          # Notebook CodeModule -> a verbatim Cell it is composed of (the lossless source substrate)
     DOCUMENTS = "DOCUMENTS"        # A markdown Cell -> the CodeSymbol(s) it precedes/documents (notebook interleaving)
     TAGGED = "TAGGED"              # Note -> Topic (a category/tag facet; the thematic-clustering edge)
-    IN_SERIES = "IN_SERIES"        # Note -> Series it belongs to (membership; the order, when known, rides an `order` edge property)
+    IN_SERIES = "IN_SERIES"        # Note -> Series it belongs to (journaled membership, DEC 72d669c5; the authored order rides the `after` edge property = the member it follows, "" = first)
     HAS_SECTION = "HAS_SECTION"    # Note -> a Section of its body (membership; the section hierarchy rides PART_OF, order rides the `order` prop)
     GATED_BY = "GATED_BY"          # Work-item -> a prerequisite that must be `done` before it is READY (the readiness spine; a DEDICATED relation, not a reused DEPENDS_ON, for query clarity)
     BLOCKED_BY = "BLOCKED_BY"      # Work-item -> a blocker — a reserved synonym of GATED_BY for the readiness computation (both edge types count as gates)
