@@ -319,6 +319,23 @@ def verified_on_edge(
                      edge_id=derive_node_id("verified_on", deliverable_id, hardware_id, os))
 
 
+def supports_edge(
+    deliverable_id: str,  # The deliverable's node id (a tutorial, a note, a case study, a project page)
+    claim_id: str,        # The claim Entity's node id
+    *,
+    kind: str,            # outcome | method | capability | knowledge (predicates.SUPPORT_KINDS)
+    note: str = "",       # Why this deliverable backs the claim, in one line
+) -> Dict[str, Any]:  # SUPPORTS edge wire dict (deliverable -> claim)
+    """One support of a claim with its kind (design de808eae (1), amendment 98e99fe5 (2)).
+
+    The kind is the edge's -- one tutorial can be capability for one claim and knowledge for
+    another -- and a pair has ONE kind, so the id derives from (deliverable, claim): a
+    restatement re-lands the edge with the new kind."""
+    return make_edge(deliverable_id, claim_id, DevRelations.SUPPORTS,
+                     properties={"kind": kind, "note": note},
+                     edge_id=derive_node_id("supports", deliverable_id, claim_id))
+
+
 @dataclass
 class SectionNode:
     """One heading-delimited section of a Note's body — the navigable unit + anchor target.

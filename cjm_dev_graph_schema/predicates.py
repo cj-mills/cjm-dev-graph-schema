@@ -138,6 +138,24 @@ VERIFICATION_STANDINGS = (STANDING_IN_SET, "fallback", "last-resort", "capture-o
 # `timeline` = attributed from the user's hardware history (the verification-hardware note).
 VERIFICATION_BASES = ("stated", "timeline")
 
+# The CLAIMS (design de808eae (1), amendment 98e99fe5): one Entity per claim the site may make
+# about the user's work (sub-kind `claim`, its record = a short statement + a position); a
+# deliverable SUPPORTS a claim with a kind on the edge. The claim's STATE is a fact with history:
+# `offered` = the site makes the claim (only offered claims reach any public surface);
+# `building` = backed work in progress, internal (gap priority, the staging profile);
+# `retired` = withdrawn. Unordered, so building -> offered is an explicit supersession and two
+# active states a hard conflict. The support KIND says what a deliverable is evidence OF:
+# `outcome` (a client result), `method` (how the work is done), `capability` (a tutorial or
+# project doing the work), `knowledge` (notes). The BACKING FLOOR (98e99fe5 (3)): an offered
+# claim needs a published support whose kind is in BACKING_KINDS -- knowledge never carries
+# an offer alone.
+ENTITY_CLAIM = "claim"
+CLAIM_STATE = "claim_state"
+CLAIM_OFFERED = "offered"
+CLAIM_STATES = (CLAIM_OFFERED, "building", "retired")
+SUPPORT_KINDS = ("outcome", "method", "capability", "knowledge")
+BACKING_KINDS = ("outcome", "method", "capability")
+
 # The APPROVAL CLASS (the review-frontier's roots): predicate -> the values that count as an
 # approval (None = any value). A born `draft` is not an approval; `reviewed`/`published` are.
 # Schema DATA, so a future `approved`/`reviewed` predicate joins here, never in the projector.
@@ -206,6 +224,9 @@ PREDICATES = {
     # A device's verification standing (8cbdc883 (7)): a closed slate, UNORDERED, so a change
     # is an explicit supersession (the Arc A770's exit from the set is a dated assertion).
     VERIFICATION_STANDING: Predicate(VERIFICATION_STANDING, ENUM, CHANGES, ORDER_NONE),
+    # A claim's state (98e99fe5 (1)): a closed slate, UNORDERED, so a promotion is an explicit
+    # supersession (building -> offered is a dated assertion) and two active states conflict.
+    CLAIM_STATE: Predicate(CLAIM_STATE, ENUM, CHANGES, ORDER_NONE),
     # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
     # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
     # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives

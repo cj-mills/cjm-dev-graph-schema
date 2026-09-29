@@ -5,7 +5,7 @@ from cjm_dev_graph_schema.identity import (note_node_id, section_node_id,
                                            series_node_id, topic_node_id)
 from cjm_dev_graph_schema.nodes import (NoteNode, SectionNode, SeriesNode,
                                         series_member_edge, site_link_edge, TopicNode,
-                                        verified_on_edge)
+                                        supports_edge, verified_on_edge)
 from cjm_dev_graph_schema.vocab import DevNodeKinds, DevRelations
 
 
@@ -194,3 +194,16 @@ def test_verified_on_edge_keys_the_os_and_carries_the_evidence():
     assert linux["id"] != win["id"] and linux["id"] == again["id"]
     assert linux["properties"] == {"os": "Ubuntu 24.04", "date": "2024-11-11", "basis": "timeline",
                                    "versions": {"tensorrt": "10.4"}, "note": ""}
+
+
+def test_supports_edge_keys_the_pair_and_carries_the_kind():
+    # 98e99fe5 (2): the kind is the edge's; one kind per (deliverable, claim), a restatement
+    # re-lands the same edge with the new kind
+    from cjm_dev_graph_schema.identity import entity_node_id
+    claim = entity_node_id("claim", "cv-train-to-deploy")
+    cap = supports_edge(note_node_id("a"), claim, kind="capability", note="trains a detector")
+    know = supports_edge(note_node_id("a"), claim, kind="knowledge")
+    other = supports_edge(note_node_id("a"), entity_node_id("claim", "gpu-performance"), kind="capability")
+    assert cap["relation_type"] == DevRelations.SUPPORTS and DevRelations.SUPPORTS in DevRelations.all()
+    assert cap["id"] == know["id"] and cap["id"] != other["id"]
+    assert cap["properties"] == {"kind": "capability", "note": "trains a detector"}

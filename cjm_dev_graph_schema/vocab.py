@@ -89,6 +89,7 @@ class DevRelations:
     ELABORATES = "ELABORATES"      # Point -> the Point it elaborates (ONE level of nesting — ruling e1fd4d64 (H): a child renders as a sub-item under its parent; a parent never has a parent)
     RENDERS = "RENDERS"            # Note -> the PointSet its body renders from (ruling 96be1528 (P)); WHICH of the set's points it shows is derived from the `point_role` facts + the type's role map, never stored
     VERIFIED_ON = "VERIFIED_ON"    # Deliverable -> the hardware Entity it was run on (design 8cbdc883 (7)); the evidence (date, os, basis, versions, note) rides the edge, one edge per (deliverable, device, os)
+    SUPPORTS = "SUPPORTS"          # Deliverable -> the claim Entity it is evidence for (design de808eae (1), amendment 98e99fe5 (2)); the support kind (outcome / method / capability / knowledge) and a one-line note ride the edge, one edge per (deliverable, claim)
     PLACED = "PLACED"              # Point -> the deliverable-owned `section` Point this deliverable places it in (ruling 96be1528 (3)/(7)): the deliverable's PER-POINT OVERLAY on a shared substance point — `after` (the key it follows; "" = the section's end) overrides order-derived membership, `refs_shown` carries the cross-reference verdicts; per-deliverable data never rides the shared point
 
     # Overlay relations this domain reuses (owned by the layer; re-exposed for convenience).
@@ -104,7 +105,7 @@ class DevRelations:
                 cls.DEFINES, cls.IMPORTS, cls.CALLS, cls.USES, cls.CONTAINS, cls.DOCUMENTS,
                 cls.TAGGED, cls.IN_SERIES, cls.HAS_SECTION, cls.GATED_BY, cls.BLOCKED_BY,
                 cls.CHECKS, cls.TESTS, cls.AMENDS, cls.HAS_POINT, cls.ELABORATES,
-                cls.RENDERS, cls.PLACED, cls.VERIFIED_ON,
+                cls.RENDERS, cls.PLACED, cls.VERIFIED_ON, cls.SUPPORTS,
                 cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 
