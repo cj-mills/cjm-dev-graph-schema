@@ -7,7 +7,7 @@ def test_typed_predicate_registry():
     assert set(P.PREDICATES) == {"rename-disposition", "version", "aka", "task_state",
                                  "priority", "model-status", "publish_state", "review_verdict",
                                  "derived_from", "deliverable_type", "point_role", "site_path",
-                                 "teaches_task", "teaches_stage"}
+                                 "teaches_task", "teaches_stage", "verification_standing"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -216,3 +216,14 @@ def test_coverage_predicates_are_multivalued_vocabulary_slug_sets():
         assert not P.values_conflict(slug, "training", "export")
         assert not P.active_contradiction(slug, ["training", "export"])
     assert set(P.COVERAGE_KINDS.values()) == {"task", "stage"}
+
+
+def test_verification_standing_is_an_unordered_closed_slate():
+    # 8cbdc883 (7): a device's standing has history; a change is an explicit supersession, so
+    # two active standings are a HARD contradiction (the in-set filter never forks)
+    p = P.get_predicate(P.VERIFICATION_STANDING)
+    assert p.value_type == P.ENUM and not P.is_ordered(P.VERIFICATION_STANDING)
+    assert not P.is_multivalued(P.VERIFICATION_STANDING)
+    assert P.active_contradiction(P.VERIFICATION_STANDING, ["in-set", "retired"])
+    assert P.STANDING_IN_SET in P.VERIFICATION_STANDINGS and "retired" in P.VERIFICATION_STANDINGS
+    assert P.VERIFICATION_BASES == ("stated", "timeline") and "gpu" in P.DEVICE_CLASSES

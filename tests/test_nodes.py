@@ -4,7 +4,8 @@ from cjm_context_graph_layer.grammar import SpineRelations
 from cjm_dev_graph_schema.identity import (note_node_id, section_node_id,
                                            series_node_id, topic_node_id)
 from cjm_dev_graph_schema.nodes import (NoteNode, SectionNode, SeriesNode,
-                                        series_member_edge, site_link_edge, TopicNode)
+                                        series_member_edge, site_link_edge, TopicNode,
+                                        verified_on_edge)
 from cjm_dev_graph_schema.vocab import DevNodeKinds, DevRelations
 
 
@@ -178,3 +179,18 @@ def test_section_structural_edges_membership_and_hierarchy():
     assert {e["relation_type"] for e in ce} == {DevRelations.HAS_SECTION, SpineRelations.PART_OF}
     part_of = [e for e in ce if e["relation_type"] == SpineRelations.PART_OF][0]
     assert part_of["target_id"] == section_node_id(nid, "setup")
+
+
+def test_verified_on_edge_keys_the_os_and_carries_the_evidence():
+    # 8cbdc883 (7): the device is the node, the OS is the edge's -- one GPU under two OSes is two
+    # verifications; a re-verification under the same OS re-lands the edge with fresh evidence
+    from cjm_dev_graph_schema.identity import entity_node_id
+    gpu = entity_node_id("hardware", "rtx-4090")
+    linux = verified_on_edge(note_node_id("a"), gpu, os="Ubuntu 24.04", date="2024-11-11",
+                             basis="timeline", versions={"tensorrt": "10.4"})
+    win = verified_on_edge(note_node_id("a"), gpu, os="Windows 11", date="2023-10-20")
+    again = verified_on_edge(note_node_id("a"), gpu, os="Ubuntu 24.04", date="2025-01-02")
+    assert linux["relation_type"] == DevRelations.VERIFIED_ON and DevRelations.VERIFIED_ON in DevRelations.all()
+    assert linux["id"] != win["id"] and linux["id"] == again["id"]
+    assert linux["properties"] == {"os": "Ubuntu 24.04", "date": "2024-11-11", "basis": "timeline",
+                                   "versions": {"tensorrt": "10.4"}, "note": ""}

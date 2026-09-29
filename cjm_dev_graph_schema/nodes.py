@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from cjm_context_graph_layer.grammar import make_edge, SpineRelations
+from cjm_context_graph_layer.identity import derive_node_id
 from cjm_context_graph_primitives.locators import FileRef
 from cjm_context_graph_primitives.provenance import SourceRef
 
@@ -295,6 +296,27 @@ def site_link_edge(
     A cross-reference, never membership (ruling 0f9ee9a8 (4)); the `site_link` marker tells
     it from wiki-link and cross-post REFERENCES, so the pass reconciles exactly its own edges."""
     return make_edge(note_id, target_id, DevRelations.REFERENCES, properties={"site_link": True})
+
+
+def verified_on_edge(
+    deliverable_id: str,                       # The deliverable's node id (a tutorial Note, an app, …)
+    hardware_id: str,                          # The hardware Entity's node id (one compute device)
+    *,
+    os: str = "",                              # The OS it ran under ("" = unknown); part of the identity
+    date: str = "",                            # When it was verified (verbatim; the post's date for the archive)
+    basis: str = "stated",                     # stated | timeline (predicates.VERIFICATION_BASES)
+    versions: Optional[Dict[str, str]] = None,  # Driver / runtime / library versions, verbatim
+    note: str = "",                            # What ran there (e.g. "model compilation only")
+) -> Dict[str, Any]:  # VERIFIED_ON edge wire dict (deliverable -> hardware)
+    """One verification with its evidence (design 8cbdc883 (7), amendment c450133a (2)).
+
+    The device is the node and the OS is the edge's -- one desktop GPU under Ubuntu and under
+    Windows is two verifications of one device -- so the id derives from (deliverable,
+    device, os): a re-verification under the same OS re-lands the edge with fresh evidence."""
+    return make_edge(deliverable_id, hardware_id, DevRelations.VERIFIED_ON,
+                     properties={"os": os, "date": date, "basis": basis,
+                                 "versions": dict(versions or {}), "note": note},
+                     edge_id=derive_node_id("verified_on", deliverable_id, hardware_id, os))
 
 
 @dataclass

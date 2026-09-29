@@ -121,6 +121,23 @@ ENTITY_TASK = "task"
 ENTITY_STAGE = "stage"
 COVERAGE_KINDS = {TEACHES_TASK: ENTITY_TASK, TEACHES_STAGE: ENTITY_STAGE}  # predicate -> the Entity sub-kind its values name
 
+# The verification HARDWARE (design 8cbdc883 (7), amendment c450133a (2)): one Entity per
+# compute device (a GPU, a CPU, a board -- never a machine, whose parts change), whatever
+# its standing; VERIFIED_ON (deliverable -> device) records what a post actually ran on.
+# The device's STANDING is a fact with history: `in-set` backs claims and is the page's
+# filter; `fallback` is usable if a project needs it, never claimed; `last-resort` is
+# rentable but untried; `capture-only` is a sensor, never a deployment target; `retired`
+# is no longer accessible, its past verifications standing as history. Unordered, so a
+# change of standing is an explicit supersession and two active standings a hard conflict.
+ENTITY_HARDWARE = "hardware"
+DEVICE_CLASSES = ("gpu", "cpu", "board", "phone", "sensor", "cloud")
+VERIFICATION_STANDING = "verification_standing"
+STANDING_IN_SET = "in-set"
+VERIFICATION_STANDINGS = (STANDING_IN_SET, "fallback", "last-resort", "capture-only", "retired")
+# A verification's evidence BASIS (c450133a (2)): `stated` = the post names the hardware;
+# `timeline` = attributed from the user's hardware history (the verification-hardware note).
+VERIFICATION_BASES = ("stated", "timeline")
+
 # The APPROVAL CLASS (the review-frontier's roots): predicate -> the values that count as an
 # approval (None = any value). A born `draft` is not an approval; `reviewed`/`published` are.
 # Schema DATA, so a future `approved`/`reviewed` predicate joins here, never in the projector.
@@ -186,6 +203,9 @@ PREDICATES = {
     # coexist and never conflict; dropping one is an explicit supersession.
     TEACHES_TASK: Predicate(TEACHES_TASK, SLUG, STABLE, ORDER_NONE, multivalued=True),
     TEACHES_STAGE: Predicate(TEACHES_STAGE, SLUG, STABLE, ORDER_NONE, multivalued=True),
+    # A device's verification standing (8cbdc883 (7)): a closed slate, UNORDERED, so a change
+    # is an explicit supersession (the Arc A770's exit from the set is a dated assertion).
+    VERIFICATION_STANDING: Predicate(VERIFICATION_STANDING, ENUM, CHANGES, ORDER_NONE),
     # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
     # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
     # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives
