@@ -90,26 +90,16 @@ def test_site_link_edge_is_a_marked_reference():
     assert e["target_id"] == series_node_id("s") and e["properties"] == {"site_link": True}
 
 
-def test_cross_post_edges_anchor_resolves_to_section_id():
-    note = _note(cross_post_refs=[("google-colab-getting-started-tutorial", "using-hardware-acceleration"),
-                                  ("mamba-getting-started-tutorial-windows", "")])
-    edges = note.cross_post_edges()
-    assert all(e["relation_type"] == DevRelations.REFERENCES for e in edges)
-    by_props = {(e["target_id"]): e for e in edges}
-    # Anchored: resolves ONTO the target post's section id (Fork C close), anchor kept.
-    target_note = note_node_id("google-colab-getting-started-tutorial")
-    sec_id = section_node_id(target_note, "using-hardware-acceleration")
-    assert sec_id in by_props
-    assert by_props[sec_id]["properties"] == {"cross_post": True, "anchor": "using-hardware-acceleration"}
-    # Un-anchored: targets the note itself.
-    plain = note_node_id("mamba-getting-started-tutorial-windows")
-    assert by_props[plain]["properties"] == {"cross_post": True}
-
-
-def test_cross_post_alias_resolution():
-    note = _note(cross_post_refs=[("old-permalink", "")])
-    e = note.cross_post_edges({"old-permalink": "new-permalink"})[0]
-    assert e["target_id"] == note_node_id("new-permalink")
+def test_site_link_edge_carries_the_anchor():
+    # One family for every in-body site link (ruling d31e9ba7): an anchored link to a post
+    # lands on the Section it names, the anchor kept on the edge; the kind is the target's
+    sec = section_node_id(note_node_id("b"), "using-hardware-acceleration")
+    e = site_link_edge(note_node_id("a"), sec, "using-hardware-acceleration")
+    assert e["target_id"] == sec
+    assert e["properties"] == {"site_link": True, "anchor": "using-hardware-acceleration"}
+    # the id is the triple's: the anchor never forks an edge between one note and one target
+    assert e["id"] == site_link_edge(note_node_id("a"), sec)["id"]
+    assert not hasattr(NoteNode, "cross_post_edges")
 
 
 def test_facets_stored_on_node_when_present():

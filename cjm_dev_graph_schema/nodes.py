@@ -106,9 +106,8 @@ class NoteNode:
     references: List[str] = field(default_factory=list)  # Slugs this note links to (`[[link]]`)
     metadata: Dict[str, Any] = field(default_factory=dict)  # Extra frontmatter carried verbatim
     categories: List[str] = field(default_factory=list)  # Normalized category/tag keys -> TAGGED edges to Topic nodes
-    site_refs: List[str] = field(default_factory=list)   # Verbatim in-body site-link targets (series pages today) the post-replay resolve pass maps through site_path facts (DEC 72d669c5) — never membership
+    site_refs: List[str] = field(default_factory=list)   # Verbatim in-body site-link targets (every page link into the site, anchors kept) the post-replay resolve pass maps through site_path facts (DEC 72d669c5; one resolver, ruling d31e9ba7) — never membership
     aliases: List[str] = field(default_factory=list)     # Alternate identities (old URLs/slugs) resolving to this note
-    cross_post_refs: List[Tuple[str, str]] = field(default_factory=list)  # (target permalink slug, section anchor) cross-post links -> REFERENCES edges
     sections: List["SectionNode"] = field(default_factory=list)  # The note's body decomposed into ordered Section nodes (when decomposed; emitted by corpus_graph_elements)
     frontmatter_raw: str = ""                    # Verbatim frontmatter prefix (fences + YAML + trailing newline); the lossless round-trip source for the frontmatter. Set in lossless mode (memory); "" otherwise. `frontmatter_raw + concat(sections.raw in order) == file bytes`
 
@@ -163,36 +162,6 @@ class NoteNode:
         return [make_edge(self.id, note_node_id(m.get(ref, ref)), DevRelations.REFERENCES)
                 for ref in self.references]
 
-    def cross_post_edges(
-        self,
-        alias_map: Optional[Dict[str, str]] = None,  # Confirmed {drifted-slug: canonical-slug} aliases
-    ) -> List[Dict[str, Any]]:  # REFERENCES edge wire dicts (cross-post markdown links)
-        """One `REFERENCES` edge per cross-post markdown link, anchor on the edge.
-
-        Reuses `REFERENCES` (a cross-post link IS a soft cross-reference) but the
-        target is a real permalink slug (not a `[[wiki-slug]]`), and the `#section`
-        anchor rides as an edge property (`anchor`) — left UNRESOLVED for now: the
-        section-node tier (the 272-headings problem) resolves it to a section later.
-        A `cross_post` marker distinguishes these from wiki-link REFERENCES.
-
-        An ANCHORED link resolves onto the target post's SECTION node by
-        construction — `section_node_id(target note, anchor)` is exactly the id that
-        post's heading mints (the anchor slug == the heading slug), so the edge lands
-        on the section without a lookup (dangling-safe if that post/section isn't
-        ingested; the note-level tie is still recoverable via the section's
-        HAS_SECTION). An UN-anchored link targets the note itself."""
-        m = alias_map or {}
-        edges = []
-        for permalink, anchor in self.cross_post_refs:
-            target_note = note_node_id(m.get(permalink, permalink))
-            props: Dict[str, Any] = {"cross_post": True}
-            if anchor:
-                props["anchor"] = anchor
-                target = section_node_id(target_note, anchor)  # resolve onto the section
-            else:
-                target = target_note
-            edges.append(make_edge(self.id, target, DevRelations.REFERENCES, props))
-        return edges
 
     def tagged_edges(self) -> List[Dict[str, Any]]:  # TAGGED edge wire dicts
         """One `TAGGED` edge per category, targeting the shared Topic node's id.
@@ -287,15 +256,21 @@ def series_member_edge(
 
 
 def site_link_edge(
-    note_id: str,    # The linking Note's node id
-    target_id: str,  # The node holding the linked page's site_path (a Series, a topic-listing Lens, …)
+    note_id: str,     # The linking Note's node id
+    target_id: str,   # The linked page's node (a post's Note, a Series, a topic-listing Lens, …) or, for an anchored link, the Section it names
+    anchor: str = "",  # The link's `#anchor` ("" = none); kept on the edge, the Section found or not
 ) -> Dict[str, Any]:  # REFERENCES edge wire dict carrying the `site_link` marker
     """An in-body site link, RESOLVED (DEC 72d669c5 (1)): the post-replay resolve pass mints
-    one per (note, page) from the note's verbatim `site_refs` and the site_path facts.
+    one per (note, target) from the note's verbatim `site_refs` and the site_path facts.
 
-    A cross-reference, never membership (ruling 0f9ee9a8 (4)); the `site_link` marker tells
-    it from wiki-link and cross-post REFERENCES, so the pass reconciles exactly its own edges."""
-    return make_edge(note_id, target_id, DevRelations.REFERENCES, properties={"site_link": True})
+    ONE family for every in-body site link (ruling d31e9ba7): a post, a Section, a Series or a
+    topic Lens is the target node's own kind, never a second marker. A cross-reference, never
+    membership (ruling 0f9ee9a8 (4)); the `site_link` marker tells it from wiki-link
+    REFERENCES, so the pass reconciles exactly its own edges."""
+    props: Dict[str, Any] = {"site_link": True}
+    if anchor:
+        props["anchor"] = anchor
+    return make_edge(note_id, target_id, DevRelations.REFERENCES, properties=props)
 
 
 def verified_on_edge(
@@ -358,6 +333,7 @@ class SectionNode:
     content_hash: str = ""                       # Content hash over the section's lossless span (`raw` when set, else `text`)
     path: str = ""                               # Source file path (provenance locator)
     raw: str = ""                                # Verbatim span INCLUDING the heading line (heading.start -> next heading.start); the lossless round-trip source. Concatenating every section's `raw` in `order` reproduces the body byte-for-byte (M1). "" in Scope-A mode (posts); set in lossless mode (memory)
+    block_role: str = ""                         # "" = the note's own content; else the DERIVED block this section is (series_callout, hand_toc, series_nav_line — design 253ac996): typed at ingest, never counted as content, excluded from the render
 
     @property
     def id(self) -> str:  # Deterministic node id
@@ -379,6 +355,8 @@ class SectionNode:
         }
         if self.raw:  # only the lossless path carries it; keep Scope-A wire dicts unchanged
             props["raw"] = self.raw
+        if self.block_role:  # only a derived block carries it; content sections' wire dicts unchanged
+            props["block_role"] = self.block_role
         sources = ([SourceRef(locator=FileRef(path=self.path),
                               content_hash=self.content_hash).to_dict()]
                    if self.path and self.content_hash else [])
