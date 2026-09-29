@@ -109,6 +109,18 @@ POINT_ROLES = (POINT_ROLE_CONTENT, POINT_ROLE_META, POINT_ROLE_ASIDE)
 # Named `site_path` because a Note's `path` property is its source FILE.
 SITE_PATH = "site_path"
 
+# The Tutorials matrix's COVERAGE facts (designs 8cbdc883 / c450133a): what a deliverable
+# TEACHES, never what it merely touches -- a training post that loads a public dataset does
+# not teach dataset creation. Each value is the key of a vocabulary Entity (sub-kind task or
+# stage), so the axes are graph DATA: a task or stage is added, renamed, reordered, merged
+# or split by a journaled op, never by a schema release. Multivalued (one post can teach two
+# tasks, or two stages); retiring a value is an explicit supersession.
+TEACHES_TASK = "teaches_task"
+TEACHES_STAGE = "teaches_stage"
+ENTITY_TASK = "task"
+ENTITY_STAGE = "stage"
+COVERAGE_KINDS = {TEACHES_TASK: ENTITY_TASK, TEACHES_STAGE: ENTITY_STAGE}  # predicate -> the Entity sub-kind its values name
+
 # The APPROVAL CLASS (the review-frontier's roots): predicate -> the values that count as an
 # approval (None = any value). A born `draft` is not an approval; `reviewed`/`published` are.
 # Schema DATA, so a future `approved`/`reviewed` predicate joins here, never in the projector.
@@ -170,6 +182,10 @@ PREDICATES = {
     # contradiction (one page, one current URL; the redirect projection must never fork).
     # A back-filled prior path is written born superseded (`--superseded-by`).
     SITE_PATH: Predicate(SITE_PATH, FREETEXT, CHANGES, ORDER_NONE),
+    # Coverage (designs 8cbdc883 / c450133a): SETS of vocabulary keys -- distinct values
+    # coexist and never conflict; dropping one is an explicit supersession.
+    TEACHES_TASK: Predicate(TEACHES_TASK, SLUG, STABLE, ORDER_NONE, multivalued=True),
+    TEACHES_STAGE: Predicate(TEACHES_STAGE, SLUG, STABLE, ORDER_NONE, multivalued=True),
     # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
     # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
     # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives

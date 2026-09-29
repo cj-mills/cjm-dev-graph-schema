@@ -6,7 +6,8 @@ from cjm_dev_graph_schema import predicates as P
 def test_typed_predicate_registry():
     assert set(P.PREDICATES) == {"rename-disposition", "version", "aka", "task_state",
                                  "priority", "model-status", "publish_state", "review_verdict",
-                                 "derived_from", "deliverable_type", "point_role", "site_path"}
+                                 "derived_from", "deliverable_type", "point_role", "site_path",
+                                 "teaches_task", "teaches_stage"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -203,3 +204,15 @@ def test_site_path_is_unordered_case_preserving_and_hard_conflicts():
     assert P.values_conflict(P.SITE_PATH, "/posts/x/", "/Notes-on-X/")
     assert not P.values_conflict(P.SITE_PATH, "/posts/x/", "/posts/x/")
     assert P.active_contradiction(P.SITE_PATH, ["/posts/x/", "/posts/y/"])
+
+
+def test_coverage_predicates_are_multivalued_vocabulary_slug_sets():
+    # Designs 8cbdc883 / c450133a: a post teaches a SET of tasks and a SET of stages, each value
+    # the key of a vocabulary Entity; distinct values coexist and never conflict.
+    for slug, kind in ((P.TEACHES_TASK, P.ENTITY_TASK), (P.TEACHES_STAGE, P.ENTITY_STAGE)):
+        p = P.get_predicate(slug)
+        assert p.value_type == P.SLUG and p.ordering == P.ORDER_NONE and p.multivalued
+        assert P.COVERAGE_KINDS[slug] == kind
+        assert not P.values_conflict(slug, "training", "export")
+        assert not P.active_contradiction(slug, ["training", "export"])
+    assert set(P.COVERAGE_KINDS.values()) == {"task", "stage"}
