@@ -17,12 +17,12 @@ the value-space conflict logic lives in `predicates`.
 
 import json
 import re
-import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 from cjm_context_graph_layer.grammar import make_edge, SpineRelations
 from cjm_context_graph_layer.identity import derive_node_id
+from cjm_context_graph_primitives.journal import op_now
 from cjm_context_graph_primitives.locators import FileRef
 from cjm_context_graph_primitives.provenance import SourceRef
 
@@ -456,7 +456,7 @@ class AssertionNode:
             "value": self.value,
             "canonical_value": self.canonical,
             "actor": self.actor,
-            "asserted_at": self.asserted_at if self.asserted_at is not None else time.time(),
+            "asserted_at": self.asserted_at if self.asserted_at is not None else op_now(),
             "root_kind": "asserted",
         }
         if self.predicate:
@@ -1135,7 +1135,7 @@ class ReferenceNode:
         label = (node.get("label") if isinstance(node, dict) else getattr(node, "label", "")) or ""
         return cls(graph=graph, foreign_id=str(nid), foreign_label=str(label),
                    title=foreign_display_title(node), observed_hash=foreign_content_hash(node),
-                   observed_at=observed_at if observed_at is not None else time.time())
+                   observed_at=observed_at if observed_at is not None else op_now())
 
     def observation(self) -> Dict[str, Any]:  # The journal-carried observation (what replay needs)
         """The observation fields a `link` op journals so replay never opens the sibling."""
