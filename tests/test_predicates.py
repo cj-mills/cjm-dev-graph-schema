@@ -8,7 +8,8 @@ def test_typed_predicate_registry():
                                  "priority", "model-status", "publish_state", "review_verdict",
                                  "derived_from", "deliverable_type", "point_role", "site_path",
                                  "teaches_task", "teaches_stage", "verification_standing",
-                                 "claim_state"}
+                                 "claim_state", "revised", "discussion", "content_license",
+                                 "code_license", "locator"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -239,3 +240,13 @@ def test_claim_state_is_an_unordered_closed_slate_and_the_floor_excludes_knowled
     assert P.active_contradiction(P.CLAIM_STATE, ["building", "offered"])
     assert P.CLAIM_OFFERED in P.CLAIM_STATES and "building" in P.CLAIM_STATES
     assert set(P.BACKING_KINDS) == set(P.SUPPORT_KINDS) - {"knowledge"}
+
+
+def test_the_post_page_facts():
+    # 39c51c15: revisions accumulate (a set, never a conflict); a thread, a license and a
+    # locator are one value each, so a change is an explicit supersession
+    assert P.is_multivalued(P.REVISED) and not P.active_contradiction(P.REVISED, ["typo pass", "new section"])
+    for slug in (P.DISCUSSION, P.CONTENT_LICENSE, P.CODE_LICENSE, P.LOCATOR):
+        assert P.is_typed(slug) and not P.is_multivalued(slug) and not P.is_ordered(slug)
+    assert P.active_contradiction(P.CONTENT_LICENSE, ["cc-by-4.0", "cc-by-nc-sa-4.0"])
+    assert P.canonical_value(P.CONTENT_LICENSE, "CC-BY-4.0") == "cc-by-4.0"   # SPDX ids, case-folded

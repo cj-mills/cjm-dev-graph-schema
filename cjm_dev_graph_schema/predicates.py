@@ -156,6 +156,22 @@ CLAIM_STATES = (CLAIM_OFFERED, "building", "retired")
 SUPPORT_KINDS = ("outcome", "method", "capability", "knowledge")
 BACKING_KINDS = ("outcome", "method", "capability")
 
+# The post page's facts (design 39c51c15, the post page of de808eae (2)):
+# REVISED -- a human's statement that a deliverable's content was revised (value = what changed);
+# the page's Updated date is the latest one's time, never a commit time (a link fix is no revision).
+REVISED = "revised"
+# DISCUSSION -- the number of the page's comment thread (a GitHub discussion): the thread keys on
+# the deliverable, never on its URL, so a path move keeps its comments (96aff70e).
+DISCUSSION = "discussion"
+# CONTENT_LICENSE / CODE_LICENSE -- the license of a deliverable class (on the DeliverableType)
+# or of one deliverable (an override, on the Note), as an SPDX identifier; a relicensing is a
+# dated supersession (c59bba74).
+CONTENT_LICENSE = "content_license"
+CODE_LICENSE = "code_license"
+# LOCATOR -- the public URL of a source a deliverable derives from (on its Reference): the sources
+# block renders through it, and a source without one is reported, never an internal id (87aaa212).
+LOCATOR = "locator"
+
 # The APPROVAL CLASS (the review-frontier's roots): predicate -> the values that count as an
 # approval (None = any value). A born `draft` is not an approval; `reviewed`/`published` are.
 # Schema DATA, so a future `approved`/`reviewed` predicate joins here, never in the projector.
@@ -227,6 +243,14 @@ PREDICATES = {
     # A claim's state (98e99fe5 (1)): a closed slate, UNORDERED, so a promotion is an explicit
     # supersession (building -> offered is a dated assertion) and two active states conflict.
     CLAIM_STATE: Predicate(CLAIM_STATE, ENUM, CHANGES, ORDER_NONE),
+    # The post page's facts (39c51c15): revisions ACCUMULATE (a set -- each a dated statement,
+    # never a conflict); a thread, a license and a locator are one value each, UNORDERED, so a
+    # change is an explicit supersession and two active values are a HARD contradiction.
+    REVISED: Predicate(REVISED, FREETEXT, STABLE, ORDER_NONE, multivalued=True),
+    DISCUSSION: Predicate(DISCUSSION, FREETEXT, CHANGES, ORDER_NONE),
+    CONTENT_LICENSE: Predicate(CONTENT_LICENSE, SLUG, CHANGES, ORDER_NONE),
+    CODE_LICENSE: Predicate(CODE_LICENSE, SLUG, CHANGES, ORDER_NONE),
+    LOCATOR: Predicate(LOCATOR, FREETEXT, CHANGES, ORDER_NONE),
     # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
     # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
     # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives
