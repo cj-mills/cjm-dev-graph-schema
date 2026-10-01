@@ -19,8 +19,9 @@ canonical-value function feeds Assertion identity, and the conflict predicates
 feed the write-time check + the `contradictions` query.
 """
 
+import json
 from dataclasses import dataclass
-from typing import Iterable, Optional, Tuple
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 # Value types.
 ENUM = "enum"          # A small closed-ish value space (e.g. keep | rename:<target>)
@@ -171,6 +172,13 @@ CODE_LICENSE = "code_license"
 # LOCATOR -- the public URL of a source a deliverable derives from (on its Reference): the sources
 # block renders through it, and a source without one is reported, never an internal id (87aaa212).
 LOCATOR = "locator"
+# CITATION -- how a source names itself to a reader (on its Reference; amendment 722a8232 (2)): the
+# PARTS of its bibliographic citation, never a rendered string -- a work's title, author, part and
+# chapter (a book chapter), or the title a source was published under (a video). Observed with the
+# locator from the sibling graph that holds the source; a source with no locator renders as its
+# citation, a linked one is named by it. The value is `citation_value(parts)`: canonical JSON.
+CITATION = "citation"
+CITATION_PARTS = ("work", "author", "part", "chapter", "title")
 # RELATED_JUDGED -- the state a post's related-post judgments were made against (design e09e262b):
 # '<question hash>:<judged-state hash>'. A post whose current value differs is STALE -- its
 # judgments predate an edit to what was judged, or a change of the question; a re-judge is an
@@ -256,6 +264,9 @@ PREDICATES = {
     CONTENT_LICENSE: Predicate(CONTENT_LICENSE, SLUG, CHANGES, ORDER_NONE),
     CODE_LICENSE: Predicate(CODE_LICENSE, SLUG, CHANGES, ORDER_NONE),
     LOCATOR: Predicate(LOCATOR, FREETEXT, CHANGES, ORDER_NONE),
+    # A source's citation (722a8232 (2)): one value, UNORDERED, so a corrected citation is an
+    # explicit supersession and two active citations are a HARD contradiction.
+    CITATION: Predicate(CITATION, FREETEXT, CHANGES, ORDER_NONE),
     # A post's judged state (e09e262b): one value, UNORDERED, so a re-judge is an explicit
     # supersession and two active values are a HARD contradiction.
     RELATED_JUDGED: Predicate(RELATED_JUDGED, FREETEXT, CHANGES, ORDER_NONE),
@@ -367,6 +378,33 @@ def canonical_value(
     if p.value_type in (ENUM, SLUG):
         return v.lower()
     return v
+
+
+def citation_value(
+    parts: Dict[str, Any],  # A citation's parts (keys from CITATION_PARTS; blanks dropped)
+) -> str:  # The `citation` value: canonical JSON, so equal parts are one Assertion
+    """A citation's parts as the fact's value -- sorted keys, compact separators, blanks dropped;
+    a key outside CITATION_PARTS refuses (the parts are the vocabulary, never free keys)."""
+    unknown = sorted(set(parts) - set(CITATION_PARTS))
+    if unknown:
+        raise ValueError(f"citation parts outside {CITATION_PARTS}: {unknown}")
+    kept = {k: v for k, v in parts.items() if v not in (None, "")}
+    if not kept:
+        raise ValueError("a citation needs at least one part")
+    return json.dumps(kept, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def citation_parts(
+    value: str,  # A `citation` fact's value
+) -> Dict[str, Any]:  # Its parts ({} for a value that is not a citation)
+    """The inverse of `citation_value`; a malformed value reads as no parts."""
+    try:
+        parts = json.loads(value)
+    except (TypeError, ValueError):
+        return {}
+    if not isinstance(parts, dict):
+        return {}
+    return {k: v for k, v in parts.items() if k in CITATION_PARTS}
 
 
 def ordering_supersedes(
