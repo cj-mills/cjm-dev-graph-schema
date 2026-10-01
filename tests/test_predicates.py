@@ -9,7 +9,7 @@ def test_typed_predicate_registry():
                                  "derived_from", "deliverable_type", "point_role", "site_path",
                                  "teaches_task", "teaches_stage", "verification_standing",
                                  "claim_state", "revised", "discussion", "content_license",
-                                 "code_license", "locator"}
+                                 "code_license", "locator", "related_judged"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -246,7 +246,7 @@ def test_the_post_page_facts():
     # 39c51c15: revisions accumulate (a set, never a conflict); a thread, a license and a
     # locator are one value each, so a change is an explicit supersession
     assert P.is_multivalued(P.REVISED) and not P.active_contradiction(P.REVISED, ["typo pass", "new section"])
-    for slug in (P.DISCUSSION, P.CONTENT_LICENSE, P.CODE_LICENSE, P.LOCATOR):
+    for slug in (P.DISCUSSION, P.CONTENT_LICENSE, P.CODE_LICENSE, P.LOCATOR, P.RELATED_JUDGED):
         assert P.is_typed(slug) and not P.is_multivalued(slug) and not P.is_ordered(slug)
     assert P.active_contradiction(P.CONTENT_LICENSE, ["cc-by-4.0", "cc-by-nc-sa-4.0"])
     assert P.canonical_value(P.CONTENT_LICENSE, "CC-BY-4.0") == "cc-by-4.0"   # SPDX ids, case-folded

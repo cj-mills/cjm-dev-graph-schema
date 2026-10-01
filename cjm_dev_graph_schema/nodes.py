@@ -311,6 +311,22 @@ def supports_edge(
                      edge_id=derive_node_id("supports", deliverable_id, claim_id))
 
 
+def judged_related_edge(
+    post_id: str,       # The post a reader has just finished (the judged pair's first post)
+    related_id: str,    # The post judged as a related read after it
+    *,
+    judgment: Dict[str, Any],  # {score, relation, score_probabilities, relation_probabilities, score_confidence, relation_confidence}
+    model: str,         # The model version the judge reported (e.g. jev-1.13.0)
+    question: str,      # The hash of the questions asked (a changed question re-judges)
+) -> Dict[str, Any]:  # JUDGED_RELATED edge wire dict (post -> related post)
+    """One judged related-post pair (design e09e262b). The pair is ORDERED -- relatedness is
+    judged from the reader of `post_id` -- and has one judgment, so the id derives from
+    (post, related): a re-judge re-lands the same edge with the new judgment."""
+    return make_edge(post_id, related_id, DevRelations.JUDGED_RELATED,
+                     properties={**judgment, "model": model, "question": question},
+                     edge_id=derive_node_id("judged-related", post_id, related_id))
+
+
 @dataclass
 class SectionNode:
     """One heading-delimited section of a Note's body — the navigable unit + anchor target.

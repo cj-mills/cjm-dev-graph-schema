@@ -5,7 +5,7 @@ from cjm_dev_graph_schema.identity import (note_node_id, section_node_id,
                                            series_node_id, topic_node_id)
 from cjm_dev_graph_schema.nodes import (NoteNode, SectionNode, SeriesNode,
                                         series_member_edge, site_link_edge, TopicNode,
-                                        supports_edge, verified_on_edge)
+                                        judged_related_edge, supports_edge, verified_on_edge)
 from cjm_dev_graph_schema.vocab import DevNodeKinds, DevRelations
 
 
@@ -197,3 +197,16 @@ def test_supports_edge_keys_the_pair_and_carries_the_kind():
     assert cap["relation_type"] == DevRelations.SUPPORTS and DevRelations.SUPPORTS in DevRelations.all()
     assert cap["id"] == know["id"] and cap["id"] != other["id"]
     assert cap["properties"] == {"kind": "capability", "note": "trains a detector"}
+
+
+def test_judged_related_edge_keys_the_ordered_pair():
+    # e09e262b: one judgment per ORDERED pair (judged from the first post's reader); a re-judge
+    # re-lands the same edge
+    j = {"score": 2.9, "relation": "follow_up"}
+    ab = judged_related_edge(note_node_id("a"), note_node_id("b"), judgment=j, model="jev-1.13.0", question="q1")
+    again = judged_related_edge(note_node_id("a"), note_node_id("b"), judgment={**j, "score": 1.0},
+                                model="jev-1.14.0", question="q2")
+    ba = judged_related_edge(note_node_id("b"), note_node_id("a"), judgment=j, model="jev-1.13.0", question="q1")
+    assert ab["relation_type"] == DevRelations.JUDGED_RELATED and DevRelations.JUDGED_RELATED in DevRelations.all()
+    assert ab["id"] == again["id"] and ab["id"] != ba["id"]
+    assert ab["properties"] == {"score": 2.9, "relation": "follow_up", "model": "jev-1.13.0", "question": "q1"}

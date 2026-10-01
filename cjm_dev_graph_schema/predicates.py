@@ -171,6 +171,11 @@ CODE_LICENSE = "code_license"
 # LOCATOR -- the public URL of a source a deliverable derives from (on its Reference): the sources
 # block renders through it, and a source without one is reported, never an internal id (87aaa212).
 LOCATOR = "locator"
+# RELATED_JUDGED -- the state a post's related-post judgments were made against (design e09e262b):
+# '<question hash>:<judged-state hash>'. A post whose current value differs is STALE -- its
+# judgments predate an edit to what was judged, or a change of the question; a re-judge is an
+# explicit supersession.
+RELATED_JUDGED = "related_judged"
 
 # The APPROVAL CLASS (the review-frontier's roots): predicate -> the values that count as an
 # approval (None = any value). A born `draft` is not an approval; `reviewed`/`published` are.
@@ -251,6 +256,9 @@ PREDICATES = {
     CONTENT_LICENSE: Predicate(CONTENT_LICENSE, SLUG, CHANGES, ORDER_NONE),
     CODE_LICENSE: Predicate(CODE_LICENSE, SLUG, CHANGES, ORDER_NONE),
     LOCATOR: Predicate(LOCATOR, FREETEXT, CHANGES, ORDER_NONE),
+    # A post's judged state (e09e262b): one value, UNORDERED, so a re-judge is an explicit
+    # supersession and two active values are a HARD contradiction.
+    RELATED_JUDGED: Predicate(RELATED_JUDGED, FREETEXT, CHANGES, ORDER_NONE),
     # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
     # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
     # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives
