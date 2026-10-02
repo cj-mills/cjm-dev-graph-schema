@@ -11,7 +11,7 @@ def test_typed_predicate_registry():
                                  "derived_from", "deliverable_type", "point_role", "site_path",
                                  "teaches_task", "teaches_stage", "verification_standing",
                                  "claim_state", "revised", "discussion", "content_license",
-                                 "code_license", "locator", "citation", "related_judged"}
+                                 "code_license", "locator", "citation", "resources", "related_judged"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -248,7 +248,8 @@ def test_the_post_page_facts():
     # 39c51c15: revisions accumulate (a set, never a conflict); a thread, a license and a
     # locator are one value each, so a change is an explicit supersession
     assert P.is_multivalued(P.REVISED) and not P.active_contradiction(P.REVISED, ["typo pass", "new section"])
-    for slug in (P.DISCUSSION, P.CONTENT_LICENSE, P.CODE_LICENSE, P.LOCATOR, P.CITATION, P.RELATED_JUDGED):
+    for slug in (P.DISCUSSION, P.CONTENT_LICENSE, P.CODE_LICENSE, P.LOCATOR, P.CITATION, P.RESOURCES,
+                 P.RELATED_JUDGED):
         assert P.is_typed(slug) and not P.is_multivalued(slug) and not P.is_ordered(slug)
     assert P.active_contradiction(P.CONTENT_LICENSE, ["cc-by-4.0", "cc-by-nc-sa-4.0"])
     assert P.canonical_value(P.CONTENT_LICENSE, "CC-BY-4.0") == "cc-by-4.0"   # SPDX ids, case-folded
@@ -266,3 +267,19 @@ def test_a_citation_is_its_parts_as_canonical_json():
         P.citation_value({"publisher": "x"})          # the parts are the vocabulary
     with pytest.raises(ValueError):
         P.citation_value({"title": ""})               # a citation names something
+
+
+def test_resources_are_the_links_as_canonical_json():
+    # a2936020: a source's human-added links, one value for the whole set, equal sets one value
+    a = P.resources_value([{"label": "Newsletter", "url": "https://n", "role": "author-post"},
+                           {"label": "Book page", "url": "https://b", "role": "publisher-page", "notes_slug": ""}])
+    b = P.resources_value([{"role": "publisher-page", "url": "https://b", "label": "Book page"},
+                           {"url": "https://n", "label": "Newsletter", "role": "author-post"}])
+    assert a == b and a.startswith('[{"label":"Newsletter"')          # role, then label order
+    assert P.resources_links(a)[1] == {"label": "Book page", "role": "publisher-page", "url": "https://b"}
+    assert P.resources_value([]) == "[]" and P.resources_links("[]") == []
+    assert P.resources_links("not json") == [] and P.resources_links('{"a": 1}') == []
+    with pytest.raises(ValueError):
+        P.resources_value([{"label": "x", "url": "https://x", "id": "n1"}])   # the fields are the vocabulary
+    with pytest.raises(ValueError):
+        P.resources_value([{"label": "x"}])                                   # a link leads somewhere

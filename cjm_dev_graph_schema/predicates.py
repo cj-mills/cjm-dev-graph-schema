@@ -198,6 +198,12 @@ LOCATOR = "locator"
 # citation, a linked one is named by it. The value is `citation_value(parts)`: canonical JSON.
 CITATION = "citation"
 CITATION_PARTS = ("work", "author", "part", "chapter", "title")
+# RESOURCES -- the human-added links a source carries in the sibling graph that holds it (on its
+# Reference; capture a2936020 under design 37f82f72 (6)): each link's label, url, role and notes
+# slug, observed with the locator and the citation (ruling a7ca900d (3): a human-added link
+# attaches upstream, never in a Note body). The value is `resources_value(links)`: canonical JSON.
+RESOURCES = "resources"
+RESOURCE_FIELDS = ("label", "url", "role", "notes_slug")
 # RELATED_JUDGED -- the state a post's related-post judgments were made against (design e09e262b):
 # '<question hash>:<judged-state hash>'. A post whose current value differs is STALE -- its
 # judgments predate an edit to what was judged, or a change of the question; a re-judge is an
@@ -286,6 +292,9 @@ PREDICATES = {
     # A source's citation (722a8232 (2)): one value, UNORDERED, so a corrected citation is an
     # explicit supersession and two active citations are a HARD contradiction.
     CITATION: Predicate(CITATION, FREETEXT, CHANGES, ORDER_NONE),
+    # A source's human-added links (a2936020): one value (the whole set), UNORDERED, so a changed
+    # set is an explicit supersession and two active sets are a HARD contradiction.
+    RESOURCES: Predicate(RESOURCES, FREETEXT, CHANGES, ORDER_NONE),
     # A post's judged state (e09e262b): one value, UNORDERED, so a re-judge is an explicit
     # supersession and two active values are a HARD contradiction.
     RELATED_JUDGED: Predicate(RELATED_JUDGED, FREETEXT, CHANGES, ORDER_NONE),
@@ -424,6 +433,38 @@ def citation_parts(
     if not isinstance(parts, dict):
         return {}
     return {k: v for k, v in parts.items() if k in CITATION_PARTS}
+
+
+def resources_value(
+    links: Iterable[Dict[str, Any]],  # A source's human-added links (keys from RESOURCE_FIELDS; blanks dropped)
+) -> str:  # The `resources` value: canonical JSON, the links in role then label order
+    """A source's links as the fact's value -- each link's fields sorted, the links in role then
+    label order, so an equal set is one Assertion; a key outside RESOURCE_FIELDS, or a link with
+    no label or nothing to follow (neither url nor notes slug), refuses. No links = '[]'."""
+    rows = []
+    for link in links:
+        unknown = sorted(set(link) - set(RESOURCE_FIELDS))
+        if unknown:
+            raise ValueError(f"resource fields outside {RESOURCE_FIELDS}: {unknown}")
+        kept = {k: v for k, v in link.items() if v not in (None, "")}
+        if not kept.get("label") or not (kept.get("url") or kept.get("notes_slug")):
+            raise ValueError(f"a resource link needs a label and a url or notes slug: {link}")
+        rows.append(kept)
+    rows.sort(key=lambda r: (str(r.get("role") or ""), str(r["label"]), str(r.get("url") or "")))
+    return json.dumps(rows, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def resources_links(
+    value: str,  # A `resources` fact's value
+) -> list:  # Its links ([] for a value that is not a link list)
+    """The inverse of `resources_value`; a malformed value reads as no links."""
+    try:
+        rows = json.loads(value)
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(rows, list):
+        return []
+    return [{k: v for k, v in r.items() if k in RESOURCE_FIELDS} for r in rows if isinstance(r, dict)]
 
 
 def ordering_supersedes(
