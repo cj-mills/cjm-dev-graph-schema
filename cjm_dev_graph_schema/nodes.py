@@ -311,6 +311,41 @@ def supports_edge(
                      edge_id=derive_node_id("supports", deliverable_id, claim_id))
 
 
+def work_provenance_edge(
+    deliverable_id: str,  # The archive deliverable's node id
+    source_id: str,       # The work or unit Entity's node id it derives from
+) -> Dict[str, Any]:  # DERIVED_FROM edge wire dict (deliverable -> work | unit)
+    """An archive deliverable's provenance (design 5de7fae9 (3), design leg 4a4ef27e (2)): ONE
+    asserted DERIVED_FROM edge to its unit, or to its work when the work has no units. One per
+    deliverable, so the id derives from the deliverable alone: a restatement re-lands the edge
+    on its new target."""
+    return make_edge(deliverable_id, source_id, DevRelations.DERIVED_FROM,
+                     edge_id=derive_node_id("work_provenance", deliverable_id))
+
+
+def unit_part_of_edge(
+    unit_id: str,  # The unit Entity's node id
+    work_id: str,  # Its work Entity's node id (named by the unit key's prefix)
+) -> Dict[str, Any]:  # PART_OF edge wire dict (unit -> work)
+    """A unit's membership in its work (design leg 4a4ef27e (2)), landed by the `entity` op
+    from the unit key's prefix -- the work is part of the unit's identity, so a unit has one
+    PART_OF edge and its id derives from the unit alone."""
+    return make_edge(unit_id, work_id, SpineRelations.PART_OF,
+                     edge_id=derive_node_id("unit_part_of", unit_id))
+
+
+def work_member_edge(
+    reference_id: str,  # A Source or Collection Reference's node id (a metabolized copy of the work)
+    entity_id: str,     # The unit (a Source) or the work (a Source of a unitless work, a Collection) it belongs to
+) -> Dict[str, Any]:  # PART_OF edge wire dict (reference -> unit | work)
+    """A metabolized source's place in its work (design 5de7fae9 (4), design leg 4a4ef27e (2)):
+    a Source Reference is PART_OF its unit, a Collection Reference PART_OF its work, so a born
+    deliverable's provenance rolls up Point set -> Source -> unit -> work. One place per
+    Reference, so the id derives from the Reference alone: a restatement re-lands it."""
+    return make_edge(reference_id, entity_id, SpineRelations.PART_OF,
+                     edge_id=derive_node_id("work_member", reference_id))
+
+
 def judged_related_edge(
     post_id: str,       # The post a reader has just finished (the judged pair's first post)
     related_id: str,    # The post judged as a related read after it
@@ -1476,6 +1511,7 @@ class DeliverableTypeNode:
     actor: str = "agent:session"                             # Who minted / last updated the profile
     kind: str = ""                                           # The navigation kind (predicates.DELIVERABLE_KINDS; "" = not yet declared)
     origin: str = ""                                         # archive | born (predicates.DELIVERABLE_ORIGINS; "" = not yet declared)
+    output_class: str = ""                                   # The Library's output class: an output_class Entity's key (design leg 4a4ef27e (3); "" = not yet declared)
 
     @property
     def id(self) -> str:  # Deterministic node id
@@ -1499,5 +1535,7 @@ class DeliverableTypeNode:
             props["kind"] = self.kind
         if self.origin:
             props["origin"] = self.origin
+        if self.output_class:
+            props["output_class"] = self.output_class
         return {"id": self.id, "label": DevNodeKinds.DELIVERABLE_TYPE, "properties": props,
                 "sources": []}

@@ -157,6 +157,25 @@ CLAIM_STATES = (CLAIM_OFFERED, "building", "retired")
 SUPPORT_KINDS = ("outcome", "method", "capability", "knowledge")
 BACKING_KINDS = ("outcome", "method", "capability")
 
+# The LIBRARY (design 5de7fae9, design leg 4a4ef27e): what was learned FROM is a `work` Entity
+# (a book, a course, a lecture series, a talk, a video, a body of documentation) -- never a
+# Series, which is the author's ordering of posts. Its record: a name, a FORM from the closed
+# slate below, the author (the citation parts' word), an optional subtitle, published date
+# (ISO, at the precision known), ISBN-13 and hand locator -- the date and the ISBN are the
+# EDITION READ's until an edition grain exists. A `unit` Entity is one part of a work (a
+# chapter, a lecture, a volume -- a volume may carry its own ISBN), minted only
+# where an output derives from it; its key is `<work key>/<unit slug>`, so the work is part of
+# the unit's identity and the entity op lands the unit's PART_OF edge. An archive deliverable's
+# provenance is ONE asserted DERIVED_FROM edge to its unit, or to its work when the work has no
+# units. The Library's OUTPUT CLASSES (projects and reproductions, tutorials, standalone
+# resources, notes) are `output_class` Entities ordered by position -- the value order as data;
+# a DeliverableType names its class in its `output_class` field, beside kind and origin.
+ENTITY_WORK = "work"
+WORK_FORMS = ("book", "course", "lecture-series", "talk", "video", "documentation")
+ENTITY_UNIT = "unit"
+UNIT_KEY_SEP = "/"
+ENTITY_OUTPUT_CLASS = "output_class"
+
 # The post page's facts (design 39c51c15, the post page of de808eae (2)):
 # REVISED -- a human's statement that a deliverable's content was revised (value = what changed);
 # the page's Updated date is the latest one's time, never a commit time (a link fix is no revision).
