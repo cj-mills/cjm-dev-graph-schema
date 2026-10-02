@@ -65,16 +65,24 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `TopicNode` _class_ — A category/tag facet — a thematic-clustering subject shared across notes.
 - `foreign_content_hash` _function_ — The content a Reference OBSERVES: the foreign node's label + its properties, canonically
 - `foreign_display_title` _function_ — Best-effort display handle for a foreign node: title/name/text-ish fields first,
+- `judged_related_edge` _function_ — One judged related-post pair (design e09e262b). The pair is ORDERED -- relatedness is
 - `parse_foreign_ref` _function_ — Split a `<graph key>:<id>` reference token; None for a plain local id / anything else.
 - `placed_edge` _function_ — The deliverable's PER-POINT OVERLAY on a point it renders (ruling 96be1528 (3)/(7)).
 - `series_member_edge` _function_ — One series membership with its AUTHORED position (DEC 72d669c5 (4)).
 - `site_link_edge` _function_ — An in-body site link, RESOLVED (DEC 72d669c5 (1)): the post-replay resolve pass mints
+- `supports_edge` _function_ — One support of a claim with its kind (design de808eae (1), amendment 98e99fe5 (2)).
+- `unit_part_of_edge` _function_ — A unit's membership in its work (design leg 4a4ef27e (2)), landed by the `entity` op
+- `verified_on_edge` _function_ — One verification with its evidence (design 8cbdc883 (7), amendment c450133a (2)).
+- `work_member_edge` _function_ — A metabolized source's place in its work (design 5de7fae9 (4), design leg 4a4ef27e (2)):
+- `work_provenance_edge` _function_ — An archive deliverable's provenance (design 5de7fae9 (3), design leg 4a4ef27e (2)): ONE
 
 ### `cjm_dev_graph_schema.predicates`
 
 - `Predicate` _class_ — A typed predicate's value-space (the contradiction decidability metadata).
 - `active_contradiction` _function_ — Whether a slot's ACTIVE (non-superseded) values form a hard contradiction.
 - `canonical_value` _function_ — Canonicalize a value so equal claims collapse to one Assertion.
+- `citation_parts` _function_ — The inverse of `citation_value`; a malformed value reads as no parts.
+- `citation_value` _function_ — A citation's parts as the fact's value -- sorted keys, compact separators, blanks dropped;
 - `get_predicate` _function_ — Look up a predicate's value-space; exact entry first, then a prefix FAMILY
 - `is_approval` _function_ — Whether an assertion is approval-class (`APPROVAL_CLASS` — schema data, design 40622922).
 - `is_multivalued` _function_ — Whether the predicate is a SET slot (distinct values coexist, never conflict).
@@ -82,6 +90,8 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `is_terminal` _function_ — Whether `value` is a TERMINAL side-state of an ordered enum (item 140981e9): off the
 - `is_typed` _function_ — Whether the predicate carries a value-space (exact entry OR prefix family).
 - `ordering_supersedes` _function_ — For an ordered predicate, does `new_value` supersede `old_value`?
+- `resources_links` _function_ — The inverse of `resources_value`; a malformed value reads as no links.
+- `resources_value` _function_ — A source's links as the fact's value -- each link's fields sorted, the links in role then
 - `soft_conflict` _function_ — Whether an UNTYPED slot's active values disagree (a worklist candidate).
 - `values_conflict` _function_ — Whether two values are a HARD contradiction under the value-space.
 

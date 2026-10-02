@@ -11,7 +11,8 @@ def test_typed_predicate_registry():
                                  "derived_from", "deliverable_type", "point_role", "site_path",
                                  "teaches_task", "teaches_stage", "verification_standing",
                                  "claim_state", "revised", "discussion", "content_license",
-                                 "code_license", "locator", "citation", "resources", "related_judged"}
+                                 "code_license", "locator", "citation", "resources", "related_judged",
+                                 "design_light_mode", "design_dark_mode"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it

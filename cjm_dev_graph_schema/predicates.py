@@ -176,6 +176,20 @@ ENTITY_UNIT = "unit"
 UNIT_KEY_SEP = "/"
 ENTITY_OUTPUT_CLASS = "output_class"
 
+# The DESIGN SYSTEMS (design 9a7224a7, work item 4765b699): a design system is an Entity of
+# sub-kind `design_system`, key = the system's slug, DERIVED by the artifact fold from the
+# source journal's captured tokens files (never minted by the entity verb), so a move between
+# repos re-keys nothing. A web deliverable's PROFILE (the public site, its staging twin, a
+# later audience-scoped site) is a `site_profile` Entity, key `<site>/<profile>`; it renders
+# under the system it is STYLED_BY, in the light / dark pair the system's scheme map names
+# unless the profile overrides it -- each a slug naming one of the system's own modes, one
+# value each, UNORDERED (a change is an explicit supersession).
+ENTITY_DESIGN_SYSTEM = "design_system"
+ENTITY_SITE_PROFILE = "site_profile"
+PROFILE_KEY_SEP = "/"
+DESIGN_LIGHT_MODE = "design_light_mode"
+DESIGN_DARK_MODE = "design_dark_mode"
+
 # The post page's facts (design 39c51c15, the post page of de808eae (2)):
 # REVISED -- a human's statement that a deliverable's content was revised (value = what changed);
 # the page's Updated date is the latest one's time, never a commit time (a link fix is no revision).
@@ -288,6 +302,9 @@ PREDICATES = {
     DISCUSSION: Predicate(DISCUSSION, FREETEXT, CHANGES, ORDER_NONE),
     CONTENT_LICENSE: Predicate(CONTENT_LICENSE, SLUG, CHANGES, ORDER_NONE),
     CODE_LICENSE: Predicate(CODE_LICENSE, SLUG, CHANGES, ORDER_NONE),
+    # A site profile's light / dark override (9a7224a7 (3)): one mode each, UNORDERED.
+    DESIGN_LIGHT_MODE: Predicate(DESIGN_LIGHT_MODE, SLUG, CHANGES, ORDER_NONE),
+    DESIGN_DARK_MODE: Predicate(DESIGN_DARK_MODE, SLUG, CHANGES, ORDER_NONE),
     LOCATOR: Predicate(LOCATOR, FREETEXT, CHANGES, ORDER_NONE),
     # A source's citation (722a8232 (2)): one value, UNORDERED, so a corrected citation is an
     # explicit supersession and two active citations are a HARD contradiction.
