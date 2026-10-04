@@ -362,6 +362,23 @@ def judged_related_edge(
                      edge_id=derive_node_id("judged-related", post_id, related_id))
 
 
+def judged_facet_edge(
+    post_id: str,       # The judged post
+    entity_id: str,     # The vocabulary Entity (tool / subject / model / task / stage) it was judged against
+    *,
+    p: float,           # The judge's yes probability (a Noul)
+    model: str,         # The model version the judge reported (e.g. jev-1.13.0)
+    criteria: str,      # The hash of the entry's criteria with its kind's instructions
+    state: str,         # The hash of the post's judged state
+) -> Dict[str, Any]:  # JUDGED_FACET edge wire dict (post -> vocabulary Entity)
+    """One judged (post, vocabulary entry) pair (design eefda2dd (3)). A pair has one judgment, so
+    the id derives from (post, entry): a re-judge re-lands the same edge with the new judgment.
+    The review mark (`reviewed`) is set on the standing edge by the review, never here."""
+    return make_edge(post_id, entity_id, DevRelations.JUDGED_FACET,
+                     properties={"p": p, "model": model, "criteria": criteria, "state": state},
+                     edge_id=derive_node_id("judged-facet", post_id, entity_id))
+
+
 @dataclass
 class SectionNode:
     """One heading-delimited section of a Note's body — the navigable unit + anchor target.

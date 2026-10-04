@@ -91,6 +91,7 @@ class DevRelations:
     VERIFIED_ON = "VERIFIED_ON"    # Deliverable -> the hardware Entity it was run on (design 8cbdc883 (7)); the evidence (date, os, basis, versions, note) rides the edge, one edge per (deliverable, device, os)
     SUPPORTS = "SUPPORTS"          # Deliverable -> the claim Entity it is evidence for (design de808eae (1), amendment 98e99fe5 (2)); the support kind (outcome / method / capability / knowledge) and a one-line note ride the edge, one edge per (deliverable, claim)
     JUDGED_RELATED = "JUDGED_RELATED"  # Post -> a post a judge rated as a related read after it (design e09e262b); the judgment (score, relation, both distributions, the model and the question hash) rides the edge, one edge per ORDERED pair -- an observation, never re-asked at build time
+    JUDGED_FACET = "JUDGED_FACET"  # Post -> a category vocabulary Entity a judge rated it as carrying (design eefda2dd (3)); the judgment (p, the model, the entry's criteria hash, the post's judged-state hash, and a review mark once the user saw it) rides the edge, one edge per (post, entry) at or above the store floor -- an observation, never re-asked at build time and never rendered
     PLACED = "PLACED"              # Point -> the deliverable-owned `section` Point this deliverable places it in (ruling 96be1528 (3)/(7)): the deliverable's PER-POINT OVERLAY on a shared substance point — `after` (the key it follows; "" = the section's end) overrides order-derived membership, `refs_shown` carries the cross-reference verdicts; per-deliverable data never rides the shared point
     STYLED_BY = "STYLED_BY"      # site_profile Entity -> the design system it renders under (design 9a7224a7 (3)); across graphs the target is the system's Reference (the notes graph observes the dev graph's design_system Entity)
 
@@ -107,7 +108,8 @@ class DevRelations:
                 cls.DEFINES, cls.IMPORTS, cls.CALLS, cls.USES, cls.CONTAINS, cls.DOCUMENTS,
                 cls.TAGGED, cls.IN_SERIES, cls.HAS_SECTION, cls.GATED_BY, cls.BLOCKED_BY,
                 cls.CHECKS, cls.TESTS, cls.AMENDS, cls.HAS_POINT, cls.ELABORATES,
-                cls.RENDERS, cls.PLACED, cls.VERIFIED_ON, cls.SUPPORTS, cls.JUDGED_RELATED, cls.STYLED_BY,
+                cls.RENDERS, cls.PLACED, cls.VERIFIED_ON, cls.SUPPORTS, cls.JUDGED_RELATED, cls.JUDGED_FACET,
+                cls.STYLED_BY,
                 cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 

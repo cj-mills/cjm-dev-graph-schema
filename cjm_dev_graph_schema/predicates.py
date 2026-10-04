@@ -133,6 +133,19 @@ ENTITY_TOOL = "tool"
 ENTITY_SUBJECT = "subject"
 ENTITY_MODEL = "model"
 FACET_KINDS = (ENTITY_TOOL, ENTITY_SUBJECT, ENTITY_MODEL)
+# The CONFIRMED category facets (design eefda2dd (4)): what the user confirmed a post is about,
+# uses or works with -- SETS of vocabulary keys, checked at write time as teaches_* is (a live,
+# unretired entry of the predicate's kind). about_task / about_stage belong to a NON-TUTORIAL
+# post only: a tutorial's task and stage chips read teaches_*. Chips render only these facts; a
+# judge's proposal (a JUDGED_FACET edge) never reaches a page.
+ABOUT_TASK = "about_task"
+ABOUT_STAGE = "about_stage"
+ABOUT_SUBJECT = "about_subject"
+USES_TOOL = "uses_tool"
+USES_MODEL = "uses_model"
+FACET_PREDICATES = {ABOUT_TASK: ENTITY_TASK, ABOUT_STAGE: ENTITY_STAGE, ABOUT_SUBJECT: ENTITY_SUBJECT,
+                    USES_TOOL: ENTITY_TOOL, USES_MODEL: ENTITY_MODEL}  # predicate -> the Entity sub-kind its values name
+NON_TUTORIAL_FACETS = (ABOUT_TASK, ABOUT_STAGE)  # refused on a tutorial (its teaches_* say it)
 
 # The verification HARDWARE (design 8cbdc883 (7), amendment c450133a (2)): one Entity per
 # compute device (a GPU, a CPU, a board -- never a machine, whose parts change), whatever
@@ -235,6 +248,13 @@ RESOURCE_FIELDS = ("label", "url", "role", "notes_slug")
 # judgments predate an edit to what was judged, or a change of the question; a re-judge is an
 # explicit supersession.
 RELATED_JUDGED = "related_judged"
+# FACETS_JUDGED -- what a post's facet judgments were made against (design eefda2dd (3)): canonical
+# JSON {"criteria": {"<kind>:<key>": <criteria hash>}, "state": <judged-state hash>}, one entry
+# per judged (post, vocabulary entry) pair -- the pairs below the store floor included, since
+# they leave no edge. A pair is STALE when the post's state or its entry's criteria (with the
+# kind's instructions) differ from the record, or it has no entry; a re-judge is an explicit
+# supersession.
+FACETS_JUDGED = "facets_judged"
 
 # The APPROVAL CLASS (the review-frontier's roots): predicate -> the values that count as an
 # approval (None = any value). A born `draft` is not an approval; `reviewed`/`published` are.
@@ -301,6 +321,12 @@ PREDICATES = {
     # coexist and never conflict; dropping one is an explicit supersession.
     TEACHES_TASK: Predicate(TEACHES_TASK, SLUG, STABLE, ORDER_NONE, multivalued=True),
     TEACHES_STAGE: Predicate(TEACHES_STAGE, SLUG, STABLE, ORDER_NONE, multivalued=True),
+    # The confirmed category facets (eefda2dd (4)): sets of vocabulary keys like coverage.
+    ABOUT_TASK: Predicate(ABOUT_TASK, SLUG, STABLE, ORDER_NONE, multivalued=True),
+    ABOUT_STAGE: Predicate(ABOUT_STAGE, SLUG, STABLE, ORDER_NONE, multivalued=True),
+    ABOUT_SUBJECT: Predicate(ABOUT_SUBJECT, SLUG, STABLE, ORDER_NONE, multivalued=True),
+    USES_TOOL: Predicate(USES_TOOL, SLUG, STABLE, ORDER_NONE, multivalued=True),
+    USES_MODEL: Predicate(USES_MODEL, SLUG, STABLE, ORDER_NONE, multivalued=True),
     # A device's verification standing (8cbdc883 (7)): a closed slate, UNORDERED, so a change
     # is an explicit supersession (the Arc A770's exit from the set is a dated assertion).
     VERIFICATION_STANDING: Predicate(VERIFICATION_STANDING, ENUM, CHANGES, ORDER_NONE),
@@ -327,6 +353,8 @@ PREDICATES = {
     # A post's judged state (e09e262b): one value, UNORDERED, so a re-judge is an explicit
     # supersession and two active values are a HARD contradiction.
     RELATED_JUDGED: Predicate(RELATED_JUDGED, FREETEXT, CHANGES, ORDER_NONE),
+    # A post's facet record (eefda2dd (3)): one value, UNORDERED, as related_judged.
+    FACETS_JUDGED: Predicate(FACETS_JUDGED, FREETEXT, CHANGES, ORDER_NONE),
     # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
     # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
     # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives

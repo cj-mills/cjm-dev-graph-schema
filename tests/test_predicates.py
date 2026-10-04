@@ -12,7 +12,8 @@ def test_typed_predicate_registry():
                                  "teaches_task", "teaches_stage", "verification_standing",
                                  "claim_state", "revised", "discussion", "content_license",
                                  "code_license", "locator", "citation", "resources", "related_judged",
-                                 "design_light_mode", "design_dark_mode"}
+                                 "design_light_mode", "design_dark_mode", "about_task", "about_stage",
+                                 "about_subject", "uses_tool", "uses_model", "facets_judged"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -284,3 +285,17 @@ def test_resources_are_the_links_as_canonical_json():
         P.resources_value([{"label": "x", "url": "https://x", "id": "n1"}])   # the fields are the vocabulary
     with pytest.raises(ValueError):
         P.resources_value([{"label": "x"}])                                   # a link leads somewhere
+
+
+def test_the_confirmed_facets_are_vocabulary_key_sets():
+    # eefda2dd (4): each confirmed facet names its vocabulary kind and is a set of keys, like teaches_*
+    assert P.FACET_PREDICATES == {"about_task": "task", "about_stage": "stage", "about_subject": "subject",
+                                  "uses_tool": "tool", "uses_model": "model"}
+    for pred in P.FACET_PREDICATES:
+        p = P.get_predicate(pred)
+        assert p.value_type == P.SLUG and p.ordering == P.ORDER_NONE and p.multivalued
+        assert not P.values_conflict(pred, "pytorch", "onnx")
+    assert set(P.NON_TUTORIAL_FACETS) == {"about_task", "about_stage"}
+    # the judge's record is one value, so a re-judge is an explicit supersession
+    r = P.get_predicate(P.FACETS_JUDGED)
+    assert r.value_type == P.FREETEXT and not r.multivalued and r.ordering == P.ORDER_NONE
