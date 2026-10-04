@@ -122,6 +122,18 @@ ENTITY_TASK = "task"
 ENTITY_STAGE = "stage"
 COVERAGE_KINDS = {TEACHES_TASK: ENTITY_TASK, TEACHES_STAGE: ENTITY_STAGE}  # predicate -> the Entity sub-kind its values name
 
+# The CATEGORY FACETS' vocabularies (design 0f7fcdcb, amendment 3c5cff97): the TOOLS a post
+# teaches or substantially uses (never one it mentions), the SUBJECTS it is about (a field,
+# domain or theme spanning tasks and tools) and the MODEL architectures it works with. Each
+# entry is an Entity carrying a description and a NOT-FOR line -- the criteria the facet judge
+# reads -- so the vocabularies are graph DATA like the matrix's axes: an entry is added,
+# renamed, merged, split or retired by a journaled op. Task and stage, the other two chip
+# facets, are the matrix's Entities above.
+ENTITY_TOOL = "tool"
+ENTITY_SUBJECT = "subject"
+ENTITY_MODEL = "model"
+FACET_KINDS = (ENTITY_TOOL, ENTITY_SUBJECT, ENTITY_MODEL)
+
 # The verification HARDWARE (design 8cbdc883 (7), amendment c450133a (2)): one Entity per
 # compute device (a GPU, a CPU, a board -- never a machine, whose parts change), whatever
 # its standing; VERIFIED_ON (deliverable -> device) records what a post actually ran on.
