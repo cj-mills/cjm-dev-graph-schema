@@ -255,6 +255,11 @@ RELATED_JUDGED = "related_judged"
 # kind's instructions) differ from the record, or it has no entry; a re-judge is an explicit
 # supersession.
 FACETS_JUDGED = "facets_judged"
+# CATEGORY_PAGE_MIN -- how many public posts a category needs for its own page (design a62f2499
+# (3)), on the category index's Lens: an entry below it serves a redirect to the category
+# listing filtered to it, never a thin page. The value is a positive integer as text; a change
+# is an explicit supersession.
+CATEGORY_PAGE_MIN = "category_page_min"
 
 # The APPROVAL CLASS (the review-frontier's roots): predicate -> the values that count as an
 # approval (None = any value). A born `draft` is not an approval; `reviewed`/`published` are.
@@ -355,6 +360,8 @@ PREDICATES = {
     RELATED_JUDGED: Predicate(RELATED_JUDGED, FREETEXT, CHANGES, ORDER_NONE),
     # A post's facet record (eefda2dd (3)): one value, UNORDERED, as related_judged.
     FACETS_JUDGED: Predicate(FACETS_JUDGED, FREETEXT, CHANGES, ORDER_NONE),
+    # The category page threshold (a62f2499 (3)): one value, UNORDERED, as related_judged.
+    CATEGORY_PAGE_MIN: Predicate(CATEGORY_PAGE_MIN, FREETEXT, CHANGES, ORDER_NONE),
     # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
     # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
     # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives
