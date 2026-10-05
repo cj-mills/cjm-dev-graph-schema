@@ -260,6 +260,12 @@ FACETS_JUDGED = "facets_judged"
 # listing filtered to it, never a thin page. The value is a positive integer as text; a change
 # is an explicit supersession.
 CATEGORY_PAGE_MIN = "category_page_min"
+# HOME_HUBS / HOME_RECENT -- how many hub pages each map entry of the home page shows, and how many
+# recent posts it lists (design e55201e2, amendment 5c3c2662 (5)), on the home Lens: the page's
+# numbers are data, never template constants. Each value is a positive integer as text; a change
+# is an explicit supersession.
+HOME_HUBS = "home_hubs"
+HOME_RECENT = "home_recent"
 
 # The APPROVAL CLASS (the review-frontier's roots): predicate -> the values that count as an
 # approval (None = any value). A born `draft` is not an approval; `reviewed`/`published` are.
@@ -362,6 +368,9 @@ PREDICATES = {
     FACETS_JUDGED: Predicate(FACETS_JUDGED, FREETEXT, CHANGES, ORDER_NONE),
     # The category page threshold (a62f2499 (3)): one value, UNORDERED, as related_judged.
     CATEGORY_PAGE_MIN: Predicate(CATEGORY_PAGE_MIN, FREETEXT, CHANGES, ORDER_NONE),
+    # The home page's numbers (e55201e2, 5c3c2662 (5)): one value each, UNORDERED, as category_page_min.
+    HOME_HUBS: Predicate(HOME_HUBS, FREETEXT, CHANGES, ORDER_NONE),
+    HOME_RECENT: Predicate(HOME_RECENT, FREETEXT, CHANGES, ORDER_NONE),
     # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
     # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
     # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives
