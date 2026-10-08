@@ -267,6 +267,65 @@ CATEGORY_PAGE_MIN = "category_page_min"
 HOME_HUBS = "home_hubs"
 HOME_RECENT = "home_recent"
 
+# The PATH MODEL (design ae698640, the walk 57287d1b, the refactor leg ad9bef5a): artifacts,
+# environments and concepts are Entity sub-kinds; have / know relations are edges with per-pair
+# data; paths, stages, cycles and gaps are DERIVED.
+# An ARTIFACT (ae698640 (1)) is one kind for the site and the flywheel: a dataset, a checkpoint, an
+# exported or compiled model, predictions, an evaluation report, a Unity package. Its record is its
+# own (the owner test): its kind (an `artifact_kind` key), task (a `task` key -- what a model
+# artifact does), base model (a `model` key), precision, format, target (a `hardware` or
+# `environment` key), license (SPDX), an OBSERVED locator (722a8232), and its LINEAGE -- the
+# artifacts it derives from, landed as DERIVED_FROM edges by the entity op. Instance lineage is
+# ACYCLIC (a cycle is refused at write time), so a data flywheel is a cycle at the KIND level only.
+# Ours vs third-party is derived (an artifact some step on the graph PRODUCES is ours).
+ENTITY_ARTIFACT = "artifact"
+# ARTIFACT KINDS are vocabulary DATA (ae698640 (2)), the task / stage precedent: added by a
+# journaled op, never a schema release. A stage Entity declares its TRANSITIONS over them --
+# [{"in": [kinds], "optional": [kinds], "out": kind}] -- so a born step's stage is a MATCH, never
+# authored; a transition whose `out` is TRANSITION_ENVIRONMENT produces an environment (Setup).
+ENTITY_ARTIFACT_KIND = "artifact_kind"
+TRANSITION_ENVIRONMENT = "environment"
+TRANSITION_FIELDS = ("in", "optional", "out")
+# An ENVIRONMENT (ae698640 (3), ad9bef5a (1)): a named setup state (a Jetson on JetPack 6, a conda
+# env with PyTorch + CUDA, the Hailo DFC on x86 Linux, Kaggle API credentials). Its record names
+# its PARTS (tool / hardware Entities, each landed PART_OF it), the environments it REQUIRES, and
+# its VARIANTS (Mamba / Conda / Google Colab -- ways to one environment, so a page keeps the
+# reader's choice). Its versions are a FACT WITH HISTORY on it (ENVIRONMENT_VERSIONS); what a
+# deliverable actually ran against stays on VERIFIED_ON's evidence, so staleness is derived.
+ENTITY_ENVIRONMENT = "environment"
+ENVIRONMENT_PART_KINDS = (ENTITY_TOOL, ENTITY_HARDWARE)
+# A CONCEPT (ae698640 (4)): understanding a reader brings, PART_OF one subject Entity (its record's
+# `subject`), with a description and a not-for line for the judge (the facet precedent).
+ENTITY_CONCEPT = "concept"
+# ENVIRONMENT_VERSIONS -- an environment's component versions now, as canonical JSON
+# {component: version} (`versions_value`), the shape VERIFIED_ON's evidence carries, so the
+# comparison is per component. One value, UNORDERED: an upgrade is an explicit supersession and
+# the superseded values are the environment's history.
+ENVIRONMENT_VERSIONS = "environment_versions"
+
+# The relations' ENDPOINTS (ae698640 (5)): relation -> (source kinds, target kinds), each kind an
+# Entity sub-kind or one of the node kinds below. The write-time check reads this table, never a
+# hand-kept copy. A setup-role Section may PRODUCE its environment (ad9bef5a (1)); an environment's
+# own REQUIRES edges land from its record (RECORD_RELATIONS), never from the relate verb.
+NODE_DELIVERABLE = "deliverable"   # a deliverable Note
+NODE_SECTION = "section"           # a Section of one
+RELATION_ENDPOINTS = {
+    "PRODUCES": ((NODE_DELIVERABLE, NODE_SECTION), (ENTITY_ARTIFACT, ENTITY_ENVIRONMENT)),
+    "REQUIRES": ((NODE_DELIVERABLE, ENTITY_ENVIRONMENT), (ENTITY_ARTIFACT, ENTITY_ENVIRONMENT)),
+    "TEACHES": ((NODE_DELIVERABLE,), (ENTITY_CONCEPT,)),
+    "ASSUMES": ((NODE_DELIVERABLE,), (ENTITY_CONCEPT,)),
+    "COVERS": ((ENTITY_UNIT, ENTITY_WORK), (ENTITY_CONCEPT,)),
+    "EXPLAINS": ((NODE_DELIVERABLE,), (NODE_DELIVERABLE, ENTITY_ARTIFACT)),
+}
+RECORD_RELATIONS = {("REQUIRES", ENTITY_ENVIRONMENT)}   # (relation, source kind) landed by the entity record
+# A prerequisite's STRENGTH (57287d1b (3)): on the edge, the step's view of the pair.
+STRENGTH_REQUIRED = "required"
+STRENGTHS = (STRENGTH_REQUIRED, "recommended")
+STRENGTH_RELATIONS = ("REQUIRES", "ASSUMES")
+# The relations a judge may PROPOSE (ae698640 (5)): the concept judging rides the JUDGED family,
+# as the facets do (their `proposes` is the facet predicate).
+JUDGEABLE_RELATIONS = ("TEACHES", "ASSUMES", "COVERS")
+
 # The APPROVAL CLASS (the review-frontier's roots): predicate -> the values that count as an
 # approval (None = any value). A born `draft` is not an approval; `reviewed`/`published` are.
 # Schema DATA, so a future `approved`/`reviewed` predicate joins here, never in the projector.
@@ -371,6 +430,9 @@ PREDICATES = {
     # The home page's numbers (e55201e2, 5c3c2662 (5)): one value each, UNORDERED, as category_page_min.
     HOME_HUBS: Predicate(HOME_HUBS, FREETEXT, CHANGES, ORDER_NONE),
     HOME_RECENT: Predicate(HOME_RECENT, FREETEXT, CHANGES, ORDER_NONE),
+    # An environment's versions (ae698640 (3)): one value, UNORDERED, so an upgrade is an explicit
+    # supersession and the superseded values are its history.
+    ENVIRONMENT_VERSIONS: Predicate(ENVIRONMENT_VERSIONS, FREETEXT, CHANGES, ORDER_NONE),
     # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
     # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
     # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives
@@ -478,6 +540,11 @@ def canonical_value(
         return v.lstrip("vV").strip()
     if p.value_type in (ENUM, SLUG):
         return v.lower()
+    if slug == ENVIRONMENT_VERSIONS:   # a component map: equal maps are one Assertion however written
+        try:
+            return versions_value(json.loads(v))
+        except (ValueError, AttributeError):
+            return v
     return v
 
 
@@ -538,6 +605,59 @@ def resources_links(
     if not isinstance(rows, list):
         return []
     return [{k: v for k, v in r.items() if k in RESOURCE_FIELDS} for r in rows if isinstance(r, dict)]
+
+
+def versions_value(
+    versions: Dict[str, Any],  # An environment's component versions ({component: version}; blanks dropped)
+) -> str:  # The `environment_versions` value: canonical JSON, so an equal map is one Assertion
+    """An environment's versions as the fact's value -- sorted keys, compact separators, blanks
+    dropped; an empty map or a non-text version refuses."""
+    kept = {str(k).strip(): v.strip() for k, v in versions.items()
+            if isinstance(v, str) and v.strip() and str(k).strip()}
+    if len(kept) != len([v for v in versions.values() if v not in (None, "")]):
+        raise ValueError(f"environment versions are text keyed by component: {versions}")
+    if not kept:
+        raise ValueError("environment versions need at least one component")
+    return json.dumps(kept, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def versions_of(
+    value: str,  # An `environment_versions` fact's value
+) -> Dict[str, str]:  # Its map ({} for a value that is not one)
+    """The inverse of `versions_value`; a malformed value reads as no versions."""
+    try:
+        m = json.loads(value)
+    except (TypeError, ValueError):
+        return {}
+    return {str(k): str(v) for k, v in m.items()} if isinstance(m, dict) else {}
+
+
+def version_key(
+    version: str,  # A component version as written ("2.4.1", "6.0", "12.4", "r36.3", "v1.13.0")
+) -> Optional[tuple]:  # A comparable key, or None when it carries no number
+    """A component version's ordering key for staleness: its runs of digits and letters in order,
+    a number below any word at one position (so 2.4 < 2.4.1 < 2.4.rc1 is never claimed -- a word
+    only compares with a word). A leading `v` is dropped; a version with no digit is incomparable."""
+    import re
+    s = version.strip().lower()
+    if s.startswith("v") and s[1:2].isdigit():
+        s = s[1:]
+    toks = re.findall(r"\d+|[a-z]+", s)
+    if not any(t.isdigit() for t in toks):
+        return None
+    return tuple((0, int(t), "") if t.isdigit() else (1, 0, t) for t in toks)
+
+
+def transition_matches(
+    transition: Dict[str, Any],  # A stage's transition ({in, optional, out})
+    inputs: Iterable[str],       # A step's input artifact kinds
+    outputs: Iterable[str],      # A step's output kinds (artifact kinds, or TRANSITION_ENVIRONMENT)
+) -> bool:
+    """Does a step match a stage's transition (ae698640 (2))? Its outputs include the transition's
+    `out`, its inputs include every `in` kind, and every input kind is `in` or `optional`."""
+    ins, outs = set(inputs), set(outputs)
+    need, may = set(transition.get("in") or ()), set(transition.get("optional") or ())
+    return transition.get("out") in outs and need <= ins and ins <= need | may
 
 
 def ordering_supersedes(

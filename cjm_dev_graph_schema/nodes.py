@@ -362,21 +362,79 @@ def judged_related_edge(
                      edge_id=derive_node_id("judged-related", post_id, related_id))
 
 
-def judged_facet_edge(
-    post_id: str,       # The judged post
-    entity_id: str,     # The vocabulary Entity (tool / subject / model / task / stage) it was judged against
+def judged_edge(
+    source_id: str,     # The judged node (a post, a unit)
+    target_id: str,     # The node it was judged against (a facet vocabulary Entity, a concept)
     *,
+    proposes: str,      # The confirmable form proposed: a facet predicate (uses_tool, ...) or a relation (TEACHES, ...)
     p: float,           # The judge's yes probability (a Noul)
     model: str,         # The model version the judge reported (e.g. jev-1.13.0)
-    criteria: str,      # The hash of the entry's criteria with its kind's instructions
-    state: str,         # The hash of the post's judged state
-) -> Dict[str, Any]:  # JUDGED_FACET edge wire dict (post -> vocabulary Entity)
-    """One judged (post, vocabulary entry) pair (design eefda2dd (3)). A pair has one judgment, so
-    the id derives from (post, entry): a re-judge re-lands the same edge with the new judgment.
-    The review mark (`reviewed`) is set on the standing edge by the review, never here."""
-    return make_edge(post_id, entity_id, DevRelations.JUDGED_FACET,
-                     properties={"p": p, "model": model, "criteria": criteria, "state": state},
-                     edge_id=derive_node_id("judged-facet", post_id, entity_id))
+    criteria: str,      # The hash of the target's criteria with its kind's instructions
+    state: str,         # The hash of the source's judged state
+) -> Dict[str, Any]:  # JUDGED edge wire dict (source -> target)
+    """One judgment of the JUDGED family (design ae698640 (5), generalizing eefda2dd (3)'s facet
+    pairs). One (source, target) pair may be judged for several forms -- a post may teach one
+    concept and assume another -- so the id derives from (source, target, proposes): a re-judge
+    re-lands the same edge with the new judgment. The review mark (`reviewed`) is set on the
+    standing edge by the review, never here."""
+    return make_edge(source_id, target_id, DevRelations.JUDGED,
+                     properties={"proposes": proposes, "p": p, "model": model, "criteria": criteria,
+                                 "state": state},
+                     edge_id=derive_node_id("judged", source_id, target_id, proposes))
+
+
+def relation_edge(
+    relation: str,            # PRODUCES | REQUIRES | TEACHES | ASSUMES | COVERS | EXPLAINS (predicates.RELATION_ENDPOINTS)
+    source_id: str,           # The step, deliverable, unit or environment
+    target_id: str,           # The artifact, environment, concept or explained node
+    *,
+    strength: str = "",       # REQUIRES / ASSUMES: required | recommended ("" = required); refused elsewhere
+    note: str = "",           # One line on the pair (what is produced from what, why it is assumed)
+    record: str = "",         # The Entity whose RECORD lands this edge (an environment's requires); "" = the relate verb
+) -> Dict[str, Any]:  # The relation's edge wire dict (source -> target)
+    """One path-model relation with its per-pair data (design ae698640 (5)). A pair holds one edge
+    per relation, so the id derives from (relation, source, target): a restated strength re-lands
+    the same edge. Endpoint kinds are checked by the writer against RELATION_ENDPOINTS."""
+    from .predicates import RELATION_ENDPOINTS, STRENGTH_RELATIONS, STRENGTH_REQUIRED, STRENGTHS
+    if relation not in RELATION_ENDPOINTS:
+        raise ValueError(f"no path-model relation {relation!r} ({', '.join(RELATION_ENDPOINTS)})")
+    props: Dict[str, Any] = {}
+    if relation in STRENGTH_RELATIONS:
+        props["strength"] = strength or STRENGTH_REQUIRED
+        if props["strength"] not in STRENGTHS:
+            raise ValueError(f"strength must be one of {', '.join(STRENGTHS)} (got {strength!r})")
+    elif strength:
+        raise ValueError(f"{relation} carries no strength (only {', '.join(STRENGTH_RELATIONS)})")
+    if note:
+        props["note"] = note
+    if record:
+        props["record"] = record
+    return make_edge(source_id, target_id, relation, properties=props,
+                     edge_id=derive_node_id("relation", relation, source_id, target_id))
+
+
+def lineage_edge(
+    artifact_id: str,  # The derived artifact's node id
+    parent_id: str,    # An artifact it derives from
+) -> Dict[str, Any]:  # DERIVED_FROM edge wire dict (artifact -> parent), marked with its record
+    """One step of an artifact's LINEAGE (design ae698640 (1)): the ONNX export from the checkpoint,
+    the checkpoint from the dataset and the pretrained weights. An artifact has many parents, so
+    the id derives from (artifact, parent); the edge names the record that lands it, so a re-mint
+    reconciles exactly its own edges."""
+    return make_edge(artifact_id, parent_id, DevRelations.DERIVED_FROM, properties={"record": artifact_id},
+                     edge_id=derive_node_id("artifact_lineage", artifact_id, parent_id))
+
+
+def record_part_of_edge(
+    part_id: str,    # The part (a concept, or a tool / hardware Entity in an environment)
+    whole_id: str,   # What it is part of (the concept's subject, the environment)
+    record_id: str,  # The Entity whose record lands the edge (the concept, or the environment)
+) -> Dict[str, Any]:  # PART_OF edge wire dict (part -> whole), marked with its record
+    """A PART_OF landed by an Entity record (design ae698640 (3) / (4)): a concept under its
+    subject, a tool or a device in an environment. The id derives from (part, whole); the
+    `record` marker lets a re-mint reconcile exactly the edges its record owns."""
+    return make_edge(part_id, whole_id, SpineRelations.PART_OF, properties={"record": record_id},
+                     edge_id=derive_node_id("record_part_of", part_id, whole_id))
 
 
 @dataclass
