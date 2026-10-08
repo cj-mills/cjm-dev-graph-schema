@@ -14,7 +14,8 @@ def test_typed_predicate_registry():
                                  "code_license", "locator", "citation", "resources", "related_judged",
                                  "design_light_mode", "design_dark_mode", "about_task", "about_stage",
                                  "about_subject", "uses_tool", "uses_model", "facets_judged",
-                                 "category_page_min", "home_hubs", "home_recent", "environment_versions"}
+                                 "category_page_min", "home_hubs", "home_recent", "environment_versions",
+                                 "traffic"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -300,3 +301,26 @@ def test_the_confirmed_facets_are_vocabulary_key_sets():
     # the judge's record is one value, so a re-judge is an explicit supersession
     r = P.get_predicate(P.FACETS_JUDGED)
     assert r.value_type == P.FREETEXT and not r.multivalued and r.ordering == P.ORDER_NONE
+
+
+def test_traffic_is_a_set_slot_of_canonical_measures():
+    # design 7f315830 (4): one value per (source, window); equal measures are one Assertion however written
+    assert P.is_multivalued(P.TRAFFIC) and not P.is_ordered(P.TRAFFIC)
+    m = {"source": "cloudflare", "window": "2026-09", "complete": True,
+         "visits": {"estimate": 230, "lower": 140.8, "upper": 319.2, "sample_size": 23}}
+    v = P.traffic_value(m)
+    assert v == P.traffic_value(dict(reversed(list(m.items()))))
+    assert P.canonical_value(P.TRAFFIC, '  ' + v.replace(",", ", ") + ' ') == v
+    assert P.traffic_of(v) == m and P.traffic_of("not json") == {} and P.traffic_of('{"source": "x"}') == {}
+
+
+@pytest.mark.parametrize("bad", [
+    {"source": "ga", "window": "2026-09", "complete": True},
+    {"source": "cloudflare", "window": "2026-13", "complete": True},
+    {"source": "cloudflare", "window": "2026-09-01", "complete": True},
+    {"source": "cloudflare", "window": "2026-09", "complete": "yes"},
+    {"source": "cloudflare", "window": "2026-09"},
+])
+def test_a_traffic_measure_refuses_what_it_cannot_name(bad):
+    with pytest.raises(ValueError):
+        P.traffic_value(bad)

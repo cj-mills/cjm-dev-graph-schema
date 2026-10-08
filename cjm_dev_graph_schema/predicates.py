@@ -303,6 +303,29 @@ ENTITY_CONCEPT = "concept"
 # the superseded values are the environment's history.
 ENVIRONMENT_VERSIONS = "environment_versions"
 
+# THE EVIDENCE (design 7f315830): traffic and inbound links are dated, sourced OBSERVATIONS on a
+# URL node, pulled by one verb, never typed in. A WEB_PATH Entity is one public URL of the site,
+# keyed by the site-link resolver's equivalence key (`x.html` = `x`, `dir/` = `dir/index.html` =
+# `dir`; query and anchor dropped): traffic belongs to the URL, and a page's share is DERIVED
+# through the path ownership (a transferred path keeps its history), never copied. A URL no page
+# holds still gets its node, so its traffic is reported, never dropped. An EVIDENCE_SNAPSHOT
+# Entity is one pull (key '<source>/<pull date>'): where its raw files live under the evidence
+# root and their hashes; every value it yields names it.
+ENTITY_WEB_PATH = "web_path"
+ENTITY_EVIDENCE_SNAPSHOT = "evidence_snapshot"
+# TRAFFIC -- one source's measure of a web_path over one calendar month, as canonical JSON
+# (`traffic_value`): the source, the window ('YYYY-MM'), whether the window is complete, and the
+# source's own measures (Cloudflare: page loads
+# and visits as estimates with a 95% interval and their sample size; Search Console: clicks,
+# impressions and the impression-weighted position). The snapshots a measure was computed from are
+# EVIDENCED_BY edges from its Assertion (references are edges, 2f8073bb), so an equal re-measure
+# from a later pull is the same Assertion with one more edge. A SET slot, one value per (source,
+# window): a changed measure supersedes its prior value explicitly, and the superseded values are
+# the window's history.
+TRAFFIC = "traffic"
+TRAFFIC_SOURCES = ("cloudflare", "search-console")
+TRAFFIC_KEYS = ("source", "window", "complete")
+
 # The relations' ENDPOINTS (ae698640 (5)): relation -> (source kinds, target kinds), each kind an
 # Entity sub-kind or one of the node kinds below. The write-time check reads this table, never a
 # hand-kept copy. A setup-role Section may PRODUCE its environment (ad9bef5a (1)); an environment's
@@ -433,6 +456,7 @@ PREDICATES = {
     # An environment's versions (ae698640 (3)): one value, UNORDERED, so an upgrade is an explicit
     # supersession and the superseded values are its history.
     ENVIRONMENT_VERSIONS: Predicate(ENVIRONMENT_VERSIONS, FREETEXT, CHANGES, ORDER_NONE),
+    TRAFFIC: Predicate(TRAFFIC, FREETEXT, CHANGES, ORDER_NONE, multivalued=True),
     # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
     # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
     # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives
@@ -545,6 +569,11 @@ def canonical_value(
             return versions_value(json.loads(v))
         except (ValueError, AttributeError):
             return v
+    if slug == TRAFFIC:   # a measure: equal measures are one Assertion however written
+        try:
+            return traffic_value(json.loads(v))
+        except (ValueError, TypeError, AttributeError):
+            return v
     return v
 
 
@@ -630,6 +659,36 @@ def versions_of(
     except (TypeError, ValueError):
         return {}
     return {str(k): str(v) for k, v in m.items()} if isinstance(m, dict) else {}
+
+
+def traffic_value(
+    measure: Dict[str, Any],  # One source's measure of a web_path over one month (TRAFFIC_KEYS + the source's measures)
+) -> str:  # The `traffic` value: canonical JSON, so an equal measure is one Assertion
+    """A traffic measure as the fact's value -- sorted keys, compact separators. Refuses a missing
+    key, a source outside TRAFFIC_SOURCES, a window that is not a calendar month ('YYYY-MM') or a
+    non-boolean `complete`."""
+    missing = [k for k in TRAFFIC_KEYS if k not in measure]
+    if missing:
+        raise ValueError(f"a traffic measure needs {TRAFFIC_KEYS}: missing {missing}")
+    if measure["source"] not in TRAFFIC_SOURCES:
+        raise ValueError(f"traffic source outside {TRAFFIC_SOURCES}: {measure['source']!r}")
+    w = str(measure["window"])
+    if not (len(w) == 7 and w[4] == "-" and w[:4].isdigit() and w[5:].isdigit() and 1 <= int(w[5:]) <= 12):
+        raise ValueError(f"a traffic window is a calendar month 'YYYY-MM': {w!r}")
+    if not isinstance(measure["complete"], bool):
+        raise ValueError(f"traffic `complete` is a boolean: {measure['complete']!r}")
+    return json.dumps(measure, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def traffic_of(
+    value: str,  # A `traffic` fact's value
+) -> Dict[str, Any]:  # Its measure ({} for a value that is not one)
+    """The inverse of `traffic_value`; a malformed value reads as no measure."""
+    try:
+        m = json.loads(value)
+    except (TypeError, ValueError):
+        return {}
+    return m if isinstance(m, dict) and all(k in m for k in TRAFFIC_KEYS) else {}
 
 
 def version_key(
