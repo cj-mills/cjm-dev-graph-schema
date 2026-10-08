@@ -97,6 +97,8 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `resources_links` _function_ — The inverse of `resources_value`; a malformed value reads as no links.
 - `resources_value` _function_ — A source's links as the fact's value -- each link's fields sorted, the links in role then
 - `soft_conflict` _function_ — Whether an UNTYPED slot's active values disagree (a worklist candidate).
+- `traffic_of` _function_ — The inverse of `traffic_value`; a malformed value reads as no measure.
+- `traffic_value` _function_ — A traffic measure as the fact's value -- sorted keys, compact separators. Refuses a missing
 - `transition_matches` _function_ — Does a step match a stage's transition (ae698640 (2))? Its outputs include the transition's
 - `values_conflict` _function_ — Whether two values are a HARD contradiction under the value-space.
 - `version_key` _function_ — A component version's ordering key for staleness: its runs of digits and letters in order,
