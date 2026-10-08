@@ -383,6 +383,29 @@ def judged_edge(
                      edge_id=derive_node_id("judged", source_id, target_id, proposes))
 
 
+def inbound_link_edge(
+    reference_id: str,     # The linking page's web Reference node id
+    web_path_id: str,      # The web_path Entity the page links
+    *,
+    method: str,           # Who observed the link: search-console | fetch (predicates.LINK_METHODS)
+    date: str,             # The observation's date ('YYYY-MM-DD'; the snapshot's date)
+    linked_urls: Optional[List[str]] = None,  # The site URLs as the page links them (several forms can key one web_path)
+    target_url: str = "",  # The target page as the observer groups it ("" = the linked URL itself)
+    anchors: Optional[List[str]] = None,      # The links' anchor texts (fetch only; the kept bytes hold the context)
+) -> Dict[str, Any]:  # REFERENCES edge wire dict (reference -> web_path)
+    """One dated observation that a linking page links a site URL (design 7f315830 (6), ruling
+    a3c02fb1 (1)). Google's report and the verify fetch are independent observers, so the id
+    derives from (reference, web_path, method, date): a re-observation on a later date is a new
+    edge and the edges are the link's history; the snapshot it came from is (the method's source,
+    date). `inbound_link` marks it apart from the site-link resolver's `site_link` edges, which the
+    resolver rebuilds."""
+    return make_edge(reference_id, web_path_id, DevRelations.REFERENCES,
+                     properties={"inbound_link": True, "method": method, "date": date,
+                                 "linked_urls": sorted(set(linked_urls or [])), "target_url": target_url,
+                                 "anchors": list(anchors or [])},
+                     edge_id=derive_node_id("inbound_link", reference_id, web_path_id, method, date))
+
+
 def relation_edge(
     relation: str,            # PRODUCES | REQUIRES | TEACHES | ASSUMES | COVERS | EXPLAINS (predicates.RELATION_ENDPOINTS)
     source_id: str,           # The step, deliverable, unit or environment

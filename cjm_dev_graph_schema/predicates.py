@@ -325,6 +325,35 @@ ENTITY_EVIDENCE_SNAPSHOT = "evidence_snapshot"
 TRAFFIC = "traffic"
 TRAFFIC_SOURCES = ("cloudflare", "search-console")
 TRAFFIC_KEYS = ("source", "window", "complete")
+# THE EVIDENCE ROOT'S SOURCES (the directory under the root, ruling a3c02fb1): the hand exports
+# kept as snapshots (a3c02fb1 (4): checks, never measures), the traffic sources, the Search
+# Console Links drill-downs read through a signed-in browser (a3c02fb1 (A)) and the verify fetch
+# of the linking pages (a3c02fb1 (3)).
+EXPORT_SOURCES = ("search-console-export", "cloudflare-export")
+LINK_SOURCES = ("search-console-links", "links-fetch")
+EVIDENCE_SOURCES = EXPORT_SOURCES + TRAFFIC_SOURCES + LINK_SOURCES
+# INBOUND LINKS (design 7f315830 (6), ruling a3c02fb1): the linking page is a web Reference
+# (ReferenceNode.WEB; the URL with scheme and host lowercased, the fragment dropped, the query
+# kept) and each observation that it links a web_path is a dated REFERENCES edge
+# (nodes.inbound_link_edge), one per (reference, web_path, method, date): Google's report
+# (method search-console, the Links drill-downs) and the verify fetch (method fetch) are two
+# independent observers.
+LINK_METHODS = ("search-console", "fetch")
+# LINK_OBSERVATION -- one observation of a linking page itself, as canonical JSON
+# (`link_observation_value`): the method (search-console-export: listed in a Links export, with
+# Google's last crawl where the export states it; fetch: the verify fetch's outcome, status,
+# reason and the number of site URLs it found) and the date. A page that refuses the fetch keeps
+# Google's edges and gains this; a page no observer targets keeps it alone, never dropped. A SET
+# slot: the observations are the page's history, none supersedes another.
+LINK_OBSERVATION = "link_observation"
+LINK_OBSERVATION_METHODS = ("search-console-export", "fetch")
+FETCH_OUTCOMES = ("ok", "gone", "refused", "error", "unreadable")
+# INBOUND_COUNT -- a source's count of a web_path's incoming links and linking sites on a date, as
+# canonical JSON (`inbound_count_value`): Google's own totals, the check the observed linking
+# pages reconcile against. A SET slot, one value per (source, date); an equal count read from a
+# drill-down and an export is one Assertion with two EVIDENCED_BY edges.
+INBOUND_COUNT = "inbound_count"
+INBOUND_COUNT_SOURCES = ("search-console",)
 
 # The relations' ENDPOINTS (ae698640 (5)): relation -> (source kinds, target kinds), each kind an
 # Entity sub-kind or one of the node kinds below. The write-time check reads this table, never a
@@ -457,6 +486,9 @@ PREDICATES = {
     # supersession and the superseded values are its history.
     ENVIRONMENT_VERSIONS: Predicate(ENVIRONMENT_VERSIONS, FREETEXT, CHANGES, ORDER_NONE),
     TRAFFIC: Predicate(TRAFFIC, FREETEXT, CHANGES, ORDER_NONE, multivalued=True),
+    # Inbound-link evidence (ruling a3c02fb1): SET slots of dated observations, as traffic.
+    LINK_OBSERVATION: Predicate(LINK_OBSERVATION, FREETEXT, CHANGES, ORDER_NONE, multivalued=True),
+    INBOUND_COUNT: Predicate(INBOUND_COUNT, FREETEXT, CHANGES, ORDER_NONE, multivalued=True),
     # Cross-graph derivation (finding 0154f5e4; the INTERIM form until the federation seam
     # carries a typed cross-graph reference edge): a born deliverable names the FOREIGN
     # nodes it drew on as `<graph-key>:<node-id>` values — a SET (one deliverable derives
@@ -572,6 +604,12 @@ def canonical_value(
     if slug == TRAFFIC:   # a measure: equal measures are one Assertion however written
         try:
             return traffic_value(json.loads(v))
+        except (ValueError, TypeError, AttributeError):
+            return v
+    if slug in (LINK_OBSERVATION, INBOUND_COUNT):   # an observation: equal ones are one Assertion
+        try:
+            m = json.loads(v)
+            return link_observation_value(m) if slug == LINK_OBSERVATION else inbound_count_value(m)
         except (ValueError, TypeError, AttributeError):
             return v
     return v
@@ -829,3 +867,53 @@ def is_approval(
     if allowed is None:
         return True
     return canonical_value(slug, value) in {canonical_value(slug, v) for v in allowed}
+
+
+def _observation_date(value: Any, what: str) -> str:  # A 'YYYY-MM-DD' date, or a ValueError naming the field
+    import datetime
+    d = str(value)
+    try:
+        if len(d) != 10 or datetime.date.fromisoformat(d).isoformat() != d:
+            raise ValueError
+    except ValueError:
+        raise ValueError(f"{what} is a date 'YYYY-MM-DD': {value!r}") from None
+    return d
+
+
+def link_observation_value(
+    obs: Dict[str, Any],  # One observation of a linking page: method, date and its findings
+) -> str:  # The `link_observation` value: canonical JSON, so an equal observation is one Assertion
+    """A linking page's observation as the fact's value (ruling a3c02fb1 (1)) -- sorted keys, compact
+    separators. Refuses a method outside LINK_OBSERVATION_METHODS, a date that is not 'YYYY-MM-DD',
+    and a fetch without an outcome in FETCH_OUTCOMES."""
+    if obs.get("method") not in LINK_OBSERVATION_METHODS:
+        raise ValueError(f"a link observation's method is one of {LINK_OBSERVATION_METHODS}: {obs.get('method')!r}")
+    _observation_date(obs.get("date"), "a link observation's date")
+    if obs["method"] == "fetch" and obs.get("outcome") not in FETCH_OUTCOMES:
+        raise ValueError(f"a fetch observation's outcome is one of {FETCH_OUTCOMES}: {obs.get('outcome')!r}")
+    return json.dumps(obs, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def inbound_count_value(
+    count: Dict[str, Any],  # A source's totals for one web_path on a date: source, date, links, sites
+) -> str:  # The `inbound_count` value: canonical JSON
+    """A source's inbound-link totals as the fact's value (ruling a3c02fb1). Refuses a source outside
+    INBOUND_COUNT_SOURCES, a date that is not 'YYYY-MM-DD' and counts that are not whole numbers."""
+    if count.get("source") not in INBOUND_COUNT_SOURCES:
+        raise ValueError(f"an inbound count's source is one of {INBOUND_COUNT_SOURCES}: {count.get('source')!r}")
+    _observation_date(count.get("date"), "an inbound count's date")
+    for k in ("links", "sites"):
+        if not isinstance(count.get(k), int) or isinstance(count.get(k), bool) or count[k] < 0:
+            raise ValueError(f"an inbound count's {k} is a whole number: {count.get(k)!r}")
+    return json.dumps(count, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def observation_of(
+    value: str,  # A `link_observation` or `inbound_count` value
+) -> Dict[str, Any]:  # Its observation ({} for a value that is not one)
+    """The inverse of `link_observation_value` / `inbound_count_value`; a malformed value reads as none."""
+    try:
+        m = json.loads(value)
+    except (TypeError, ValueError):
+        return {}
+    return m if isinstance(m, dict) and m.get("date") else {}

@@ -5,7 +5,8 @@ from cjm_dev_graph_schema.identity import (note_node_id, section_node_id,
                                            series_node_id, topic_node_id)
 from cjm_dev_graph_schema.nodes import (NoteNode, SectionNode, SeriesNode,
                                         series_member_edge, site_link_edge, TopicNode,
-                                        judged_related_edge, supports_edge, verified_on_edge)
+                                        inbound_link_edge, judged_related_edge, supports_edge,
+                                        verified_on_edge)
 from cjm_dev_graph_schema.vocab import DevNodeKinds, DevRelations
 
 
@@ -210,3 +211,24 @@ def test_judged_related_edge_keys_the_ordered_pair():
     assert ab["relation_type"] == DevRelations.JUDGED_RELATED and DevRelations.JUDGED_RELATED in DevRelations.all()
     assert ab["id"] == again["id"] and ab["id"] != ba["id"]
     assert ab["properties"] == {"score": 2.9, "relation": "follow_up", "model": "jev-1.13.0", "question": "q1"}
+
+
+def test_inbound_link_edge_keys_the_observer_and_the_date():
+    # ruling a3c02fb1 (1): Google's report and the verify fetch are two observers; a later date is a
+    # new edge (the link's history), the same (method, date) re-lands one edge
+    from cjm_dev_graph_schema.identity import entity_node_id, reference_node_id
+    ref = reference_node_id("web", "https://devtalk.com/t/x/1")
+    wp = entity_node_id("web_path", "/posts/arc-a770-testing/part-2")
+    google = inbound_link_edge(ref, wp, method="search-console", date="2026-10-08",
+                               linked_urls=["https://christianjmills.com/posts/arc-a770-testing/part-2/"])
+    fetched = inbound_link_edge(ref, wp, method="fetch", date="2026-10-08", anchors=["Arc A770 part 2"],
+                                linked_urls=["https://christianjmills.com/posts/arc-a770-testing/part-2/",
+                                             "https://christianjmills.com/posts/arc-a770-testing/part-2"])
+    later = inbound_link_edge(ref, wp, method="fetch", date="2026-11-02")
+    again = inbound_link_edge(ref, wp, method="search-console", date="2026-10-08")
+    assert google["relation_type"] == DevRelations.REFERENCES and google["source_id"] == ref
+    assert len({google["id"], fetched["id"], later["id"]}) == 3 and again["id"] == google["id"]
+    assert fetched["properties"] == {"inbound_link": True, "method": "fetch", "date": "2026-10-08",
+                                     "linked_urls": sorted(fetched["properties"]["linked_urls"]),
+                                     "target_url": "", "anchors": ["Arc A770 part 2"]}
+    assert "site_link" not in google["properties"]   # never one of the resolver's edges

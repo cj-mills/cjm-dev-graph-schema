@@ -15,7 +15,7 @@ def test_typed_predicate_registry():
                                  "design_light_mode", "design_dark_mode", "about_task", "about_stage",
                                  "about_subject", "uses_tool", "uses_model", "facets_judged",
                                  "category_page_min", "home_hubs", "home_recent", "environment_versions",
-                                 "traffic"}
+                                 "traffic", "link_observation", "inbound_count"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -324,3 +324,39 @@ def test_traffic_is_a_set_slot_of_canonical_measures():
 def test_a_traffic_measure_refuses_what_it_cannot_name(bad):
     with pytest.raises(ValueError):
         P.traffic_value(bad)
+
+
+def test_link_observations_and_inbound_counts_are_set_slots_of_canonical_values():
+    # ruling a3c02fb1: dated observations, none supersedes another; equal ones are one Assertion
+    assert P.is_multivalued(P.LINK_OBSERVATION) and P.is_multivalued(P.INBOUND_COUNT)
+    assert set(P.EVIDENCE_SOURCES) >= set(P.TRAFFIC_SOURCES) | set(P.LINK_SOURCES) | set(P.EXPORT_SOURCES)
+    o = {"method": "fetch", "date": "2026-10-08", "outcome": "refused", "status": 999, "reason": "status 999"}
+    v = P.link_observation_value(o)
+    assert v == P.link_observation_value(dict(reversed(list(o.items()))))
+    assert P.canonical_value(P.LINK_OBSERVATION, " " + v.replace(",", ", ") + " ") == v
+    assert P.observation_of(v) == o and P.observation_of("x") == {}
+    c = {"source": "search-console", "date": "2026-10-08", "links": 389, "sites": 8}
+    assert P.canonical_value(P.INBOUND_COUNT, P.inbound_count_value(c)) == P.inbound_count_value(c)
+    assert P.observation_of(P.inbound_count_value(c)) == c
+
+
+@pytest.mark.parametrize("bad", [
+    {"method": "crawl", "date": "2026-10-08"},
+    {"method": "search-console-export", "date": "2026-10"},
+    {"method": "fetch", "date": "2026-10-08"},
+    {"method": "fetch", "date": "2026-10-08", "outcome": "maybe"},
+])
+def test_a_link_observation_refuses_what_it_cannot_name(bad):
+    with pytest.raises(ValueError):
+        P.link_observation_value(bad)
+
+
+@pytest.mark.parametrize("bad", [
+    {"source": "ahrefs", "date": "2026-10-08", "links": 1, "sites": 1},
+    {"source": "search-console", "date": "2026-02-30", "links": 1, "sites": 1},
+    {"source": "search-console", "date": "2026-10-08", "links": 1.5, "sites": 1},
+    {"source": "search-console", "date": "2026-10-08", "links": True, "sites": 1},
+])
+def test_an_inbound_count_refuses_what_it_cannot_name(bad):
+    with pytest.raises(ValueError):
+        P.inbound_count_value(bad)
