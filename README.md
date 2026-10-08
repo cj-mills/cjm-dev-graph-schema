@@ -65,9 +65,13 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `TopicNode` _class_ — A category/tag facet — a thematic-clustering subject shared across notes.
 - `foreign_content_hash` _function_ — The content a Reference OBSERVES: the foreign node's label + its properties, canonically
 - `foreign_display_title` _function_ — Best-effort display handle for a foreign node: title/name/text-ish fields first,
+- `judged_edge` _function_ — One judgment of the JUDGED family (design ae698640 (5), generalizing eefda2dd (3)'s facet
 - `judged_related_edge` _function_ — One judged related-post pair (design e09e262b). The pair is ORDERED -- relatedness is
+- `lineage_edge` _function_ — One step of an artifact's LINEAGE (design ae698640 (1)): the ONNX export from the checkpoint,
 - `parse_foreign_ref` _function_ — Split a `<graph key>:<id>` reference token; None for a plain local id / anything else.
 - `placed_edge` _function_ — The deliverable's PER-POINT OVERLAY on a point it renders (ruling 96be1528 (3)/(7)).
+- `record_part_of_edge` _function_ — A PART_OF landed by an Entity record (design ae698640 (3) / (4)): a concept under its
+- `relation_edge` _function_ — One path-model relation with its per-pair data (design ae698640 (5)). A pair holds one edge
 - `series_member_edge` _function_ — One series membership with its AUTHORED position (DEC 72d669c5 (4)).
 - `site_link_edge` _function_ — An in-body site link, RESOLVED (DEC 72d669c5 (1)): the post-replay resolve pass mints
 - `supports_edge` _function_ — One support of a claim with its kind (design de808eae (1), amendment 98e99fe5 (2)).
@@ -93,7 +97,11 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `resources_links` _function_ — The inverse of `resources_value`; a malformed value reads as no links.
 - `resources_value` _function_ — A source's links as the fact's value -- each link's fields sorted, the links in role then
 - `soft_conflict` _function_ — Whether an UNTYPED slot's active values disagree (a worklist candidate).
+- `transition_matches` _function_ — Does a step match a stage's transition (ae698640 (2))? Its outputs include the transition's
 - `values_conflict` _function_ — Whether two values are a HARD contradiction under the value-space.
+- `version_key` _function_ — A component version's ordering key for staleness: its runs of digits and letters in order,
+- `versions_of` _function_ — The inverse of `versions_value`; a malformed value reads as no versions.
+- `versions_value` _function_ — An environment's versions as the fact's value -- sorted keys, compact separators, blanks
 
 ### `cjm_dev_graph_schema.vocab`
 
