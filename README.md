@@ -65,6 +65,7 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `TopicNode` _class_ — A category/tag facet — a thematic-clustering subject shared across notes.
 - `foreign_content_hash` _function_ — The content a Reference OBSERVES: the foreign node's label + its properties, canonically
 - `foreign_display_title` _function_ — Best-effort display handle for a foreign node: title/name/text-ish fields first,
+- `inbound_link_edge` _function_ — One dated observation that a linking page links a site URL (design 7f315830 (6), ruling
 - `judged_edge` _function_ — One judgment of the JUDGED family (design ae698640 (5), generalizing eefda2dd (3)'s facet
 - `judged_related_edge` _function_ — One judged related-post pair (design e09e262b). The pair is ORDERED -- relatedness is
 - `lineage_edge` _function_ — One step of an artifact's LINEAGE (design ae698640 (1)): the ONNX export from the checkpoint,
@@ -88,11 +89,14 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `citation_parts` _function_ — The inverse of `citation_value`; a malformed value reads as no parts.
 - `citation_value` _function_ — A citation's parts as the fact's value -- sorted keys, compact separators, blanks dropped;
 - `get_predicate` _function_ — Look up a predicate's value-space; exact entry first, then a prefix FAMILY
+- `inbound_count_value` _function_ — A source's inbound-link totals as the fact's value (ruling a3c02fb1). Refuses a source outside
 - `is_approval` _function_ — Whether an assertion is approval-class (`APPROVAL_CLASS` — schema data, design 40622922).
 - `is_multivalued` _function_ — Whether the predicate is a SET slot (distinct values coexist, never conflict).
 - `is_ordered` _function_ — Whether the predicate's values have a "later supersedes earlier" ordering.
 - `is_terminal` _function_ — Whether `value` is a TERMINAL side-state of an ordered enum (item 140981e9): off the
 - `is_typed` _function_ — Whether the predicate carries a value-space (exact entry OR prefix family).
+- `link_observation_value` _function_ — A linking page's observation as the fact's value (ruling a3c02fb1 (1)) -- sorted keys, compact
+- `observation_of` _function_ — The inverse of `link_observation_value` / `inbound_count_value`; a malformed value reads as none.
 - `ordering_supersedes` _function_ — For an ordered predicate, does `new_value` supersede `old_value`?
 - `resources_links` _function_ — The inverse of `resources_value`; a malformed value reads as no links.
 - `resources_value` _function_ — A source's links as the fact's value -- each link's fields sorted, the links in role then
