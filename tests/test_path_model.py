@@ -38,7 +38,7 @@ def test_relation_edge_keys_the_pair_per_relation_and_carries_strength():
         relation_edge("TEACHES", step, ckpt, strength="required")
     with pytest.raises(ValueError, match="strength must be one of"):
         relation_edge("ASSUMES", step, ckpt, strength="maybe")
-    with pytest.raises(ValueError, match="no path-model relation"):
+    with pytest.raises(ValueError, match="no relation"):
         relation_edge("USES", step, ckpt)
     env = relation_edge("REQUIRES", entity_node_id("environment", "cuda"),
                         entity_node_id("environment", "nvidia-driver"), record=entity_node_id("environment", "cuda"))
@@ -91,3 +91,22 @@ def test_transition_match_is_a_set_rule():
     setup = {"in": [], "out": P.TRANSITION_ENVIRONMENT}
     assert P.transition_matches(setup, [], [P.TRANSITION_ENVIRONMENT])
     assert not P.transition_matches(setup, ["dataset"], [P.TRANSITION_ENVIRONMENT])
+
+
+def test_the_standing_slate_and_the_destination_relations():
+    # cbd5f154 (1) amended by 6514869f: one unordered standing fact, superseded never a value
+    assert P.CURRENCY_VALUES == ("current", "archived", "removed") and "superseded" not in P.CURRENCY_VALUES
+    assert set(P.CURRENCY_WITHDRAWN) == {"archived", "removed"}
+    cur = P.get_predicate(P.CURRENCY)
+    assert cur.ordering == P.ORDER_NONE and not cur.multivalued
+    # the destination relations share the endpoint table, never the path walk
+    assert P.RELATION_ENDPOINTS["SUPERSEDES"] == ((P.NODE_DELIVERABLE,), (P.NODE_DELIVERABLE,))
+    assert P.RELATION_ENDPOINTS["RELOCATED_TO"] == ((P.NODE_DELIVERABLE,), (P.NODE_REFERENCE,))
+    assert set(P.PATH_RELATIONS) | set(P.DESTINATION_RELATIONS) == set(P.RELATION_ENDPOINTS)
+    assert not set(P.PATH_RELATIONS) & set(P.DESTINATION_RELATIONS)
+    assert DevRelations.RELOCATED_TO in DevRelations.all()
+    old, new = note_node_id("fastai-timm"), note_node_id("pytorch-timm")
+    e = relation_edge("SUPERSEDES", new, old, note="the PyTorch timm series")
+    assert (e["source_id"], e["target_id"], e["relation_type"]) == (new, old, "SUPERSEDES")
+    with pytest.raises(ValueError):
+        relation_edge("RELOCATED_TO", old, new, strength="recommended")

@@ -407,7 +407,7 @@ def inbound_link_edge(
 
 
 def relation_edge(
-    relation: str,            # PRODUCES | REQUIRES | TEACHES | ASSUMES | COVERS | EXPLAINS (predicates.RELATION_ENDPOINTS)
+    relation: str,            # A path relation or a destination relation (SUPERSEDES | RELOCATED_TO) -- predicates.RELATION_ENDPOINTS
     source_id: str,           # The step, deliverable, unit or environment
     target_id: str,           # The artifact, environment, concept or explained node
     *,
@@ -415,12 +415,13 @@ def relation_edge(
     note: str = "",           # One line on the pair (what is produced from what, why it is assumed)
     record: str = "",         # The Entity whose RECORD lands this edge (an environment's requires); "" = the relate verb
 ) -> Dict[str, Any]:  # The relation's edge wire dict (source -> target)
-    """One path-model relation with its per-pair data (design ae698640 (5)). A pair holds one edge
-    per relation, so the id derives from (relation, source, target): a restated strength re-lands
-    the same edge. Endpoint kinds are checked by the writer against RELATION_ENDPOINTS."""
+    """One authored relation with its per-pair data: a path-model relation (design ae698640 (5)) or
+    a page's destination (cbd5f154 (3)/(4)). A pair holds one edge per relation, so the id derives
+    from (relation, source, target): a restated strength re-lands the same edge. Endpoint kinds are
+    checked by the writer against RELATION_ENDPOINTS."""
     from .predicates import RELATION_ENDPOINTS, STRENGTH_RELATIONS, STRENGTH_REQUIRED, STRENGTHS
     if relation not in RELATION_ENDPOINTS:
-        raise ValueError(f"no path-model relation {relation!r} ({', '.join(RELATION_ENDPOINTS)})")
+        raise ValueError(f"no relation {relation!r} ({', '.join(RELATION_ENDPOINTS)})")
     props: Dict[str, Any] = {}
     if relation in STRENGTH_RELATIONS:
         props["strength"] = strength or STRENGTH_REQUIRED

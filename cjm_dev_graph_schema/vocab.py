@@ -103,6 +103,7 @@ class DevRelations:
     EXPLAINS = "EXPLAINS"          # A companion deliverable (a rationale, a walkthrough, a log) -> the step or artifact it explains (ELABORATES is Point nesting and cannot carry it)
     PLACED = "PLACED"              # Point -> the deliverable-owned `section` Point this deliverable places it in (ruling 96be1528 (3)/(7)): the deliverable's PER-POINT OVERLAY on a shared substance point — `after` (the key it follows; "" = the section's end) overrides order-derived membership, `refs_shown` carries the cross-reference verdicts; per-deliverable data never rides the shared point
     STYLED_BY = "STYLED_BY"      # site_profile Entity -> the design system it renders under (design 9a7224a7 (3)); across graphs the target is the system's Reference (the notes graph observes the dev graph's design_system Entity)
+    RELOCATED_TO = "RELOCATED_TO"  # A removed deliverable -> the web Reference of its repo copy's URL (design amendment cbd5f154 (4)): where its readers go when no successor SUPERSEDES it; the redirect is projected from it, never stored
 
     # Overlay relations this domain reuses (owned by the layer; re-exposed for convenience).
     SUPERSEDES = OverlayRelations.SUPERSEDES
@@ -119,7 +120,7 @@ class DevRelations:
                 cls.CHECKS, cls.TESTS, cls.AMENDS, cls.HAS_POINT, cls.ELABORATES,
                 cls.RENDERS, cls.PLACED, cls.VERIFIED_ON, cls.SUPPORTS, cls.JUDGED_RELATED, cls.JUDGED,
                 cls.STYLED_BY, cls.PRODUCES, cls.REQUIRES, cls.TEACHES, cls.ASSUMES, cls.COVERS,
-                cls.EXPLAINS,
+                cls.EXPLAINS, cls.RELOCATED_TO,
                 cls.SUPERSEDES, cls.DERIVED_FROM, cls.PRODUCED]
 
 

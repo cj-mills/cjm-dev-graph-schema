@@ -66,6 +66,21 @@ PUBLISH_REVIEWED = "reviewed"    # A person reviewed it in staging
 PUBLISH_PUBLISHED = "published"  # Cleared for the outward emit
 PUBLISH_RETIRED = "retired"      # Terminal: abandoned, provenance kept, never emitted
 
+# A page's STANDING (design amendment cbd5f154 (1), amended by 6514869f): the RULING on what a
+# page is now, one authored value -- `current` (overhauled by standing rule), `archived` (kept at
+# its URL under a historical banner, out of the main navigation: a page cited in volume with no
+# repo of its own, or a time capsule), `removed` (ruled off the public site; its EXECUTION is
+# publish_state retired plus the destination -- the successor's SUPERSEDES or a RELOCATED_TO edge
+# -- landed once the redirect can be projected). Asserted on every archive post, so an archive
+# post with none is UNRULED; a born deliverable takes it alike. SUPERSEDED is never a value: it is
+# DERIVED at read from a published successor's SUPERSEDES edge.
+CURRENCY = "currency"
+CURRENCY_CURRENT = "current"
+CURRENCY_ARCHIVED = "archived"
+CURRENCY_REMOVED = "removed"
+CURRENCY_VALUES = (CURRENCY_CURRENT, CURRENCY_ARCHIVED, CURRENCY_REMOVED)
+CURRENCY_WITHDRAWN = (CURRENCY_ARCHIVED, CURRENCY_REMOVED)   # standings whose claim support is withdrawn (cbd5f154 (6))
+
 # Review verdicts (design 40622922 (5), item 730e077e): a reviewer's considered "no update
 # needed" for ONE upstream change of an approved deliverable — asserted ON the deliverable,
 # value = the change KEY the review-frontier projector printed (`<upstream id prefix>@<content
@@ -361,6 +376,7 @@ INBOUND_COUNT_SOURCES = ("search-console",)
 # own REQUIRES edges land from its record (RECORD_RELATIONS), never from the relate verb.
 NODE_DELIVERABLE = "deliverable"   # a deliverable Note
 NODE_SECTION = "section"           # a Section of one
+NODE_REFERENCE = "reference"       # a Reference node (a web Reference keys a URL)
 RELATION_ENDPOINTS = {
     "PRODUCES": ((NODE_DELIVERABLE, NODE_SECTION), (ENTITY_ARTIFACT, ENTITY_ENVIRONMENT)),
     "REQUIRES": ((NODE_DELIVERABLE, ENTITY_ENVIRONMENT), (ENTITY_ARTIFACT, ENTITY_ENVIRONMENT)),
@@ -368,7 +384,16 @@ RELATION_ENDPOINTS = {
     "ASSUMES": ((NODE_DELIVERABLE,), (ENTITY_CONCEPT,)),
     "COVERS": ((ENTITY_UNIT, ENTITY_WORK), (ENTITY_CONCEPT,)),
     "EXPLAINS": ((NODE_DELIVERABLE,), (NODE_DELIVERABLE, ENTITY_ARTIFACT)),
+    # A page's DESTINATION (design amendment cbd5f154 (3)/(4)): a published successor SUPERSEDES the
+    # page it replaces (superseded is derived from the edge, never stored), and a removed page with
+    # no successor is RELOCATED_TO the web Reference of its repo copy's URL. Not path relations.
+    "SUPERSEDES": ((NODE_DELIVERABLE,), (NODE_DELIVERABLE,)),
+    "RELOCATED_TO": ((NODE_DELIVERABLE,), (NODE_REFERENCE,)),
 }
+# The PATH MODEL's relations (ae698640 (5)): the ones its reads walk; the destination relations above
+# share the endpoint check and the relate verb, never the walk.
+PATH_RELATIONS = ("PRODUCES", "REQUIRES", "TEACHES", "ASSUMES", "COVERS", "EXPLAINS")
+DESTINATION_RELATIONS = ("SUPERSEDES", "RELOCATED_TO")
 RECORD_RELATIONS = {("REQUIRES", ENTITY_ENVIRONMENT)}   # (relation, source kind) landed by the entity record
 # A prerequisite's STRENGTH (57287d1b (3)): on the edge, the step's view of the pair.
 STRENGTH_REQUIRED = "required"
@@ -423,6 +448,9 @@ PREDICATES = {
     PUBLISH_STATE: Predicate(PUBLISH_STATE, ENUM, CHANGES, ORDER_ENUM,
                              order_values=(PUBLISH_FIXTURE, PUBLISH_DRAFT, PUBLISH_REVIEWED, PUBLISH_PUBLISHED),
                              terminal_values=(PUBLISH_RETIRED,)),
+    # A page's standing (cbd5f154 (1), 6514869f): a closed slate, UNORDERED, so a re-ruling is an
+    # explicit supersession and two active standings are a HARD contradiction.
+    CURRENCY: Predicate(CURRENCY, ENUM, CHANGES, ORDER_NONE),
     # Review verdicts (design 40622922 (5)): a SET of acknowledged change keys on an approved
     # deliverable — many coexist and never conflict; retiring one is an explicit supersession.
     # Freetext (the key is derived by the projector, never typed by hand from memory).

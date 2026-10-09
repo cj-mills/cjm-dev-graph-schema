@@ -72,7 +72,7 @@ Development/decision-provenance schema for context graphs: Decision, Fact-slot/A
 - `parse_foreign_ref` _function_ — Split a `<graph key>:<id>` reference token; None for a plain local id / anything else.
 - `placed_edge` _function_ — The deliverable's PER-POINT OVERLAY on a point it renders (ruling 96be1528 (3)/(7)).
 - `record_part_of_edge` _function_ — A PART_OF landed by an Entity record (design ae698640 (3) / (4)): a concept under its
-- `relation_edge` _function_ — One path-model relation with its per-pair data (design ae698640 (5)). A pair holds one edge
+- `relation_edge` _function_ — One authored relation with its per-pair data: a path-model relation (design ae698640 (5)) or
 - `series_member_edge` _function_ — One series membership with its AUTHORED position (DEC 72d669c5 (4)).
 - `site_link_edge` _function_ — An in-body site link, RESOLVED (DEC 72d669c5 (1)): the post-replay resolve pass mints
 - `supports_edge` _function_ — One support of a claim with its kind (design de808eae (1), amendment 98e99fe5 (2)).
