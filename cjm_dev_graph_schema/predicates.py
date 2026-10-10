@@ -117,6 +117,18 @@ POINT_ROLE_META = "meta"
 POINT_ROLE_ASIDE = "aside"
 POINT_ROLES = (POINT_ROLE_CONTENT, POINT_ROLE_META, POINT_ROLE_ASIDE)
 
+# A Section's ROLE (design ad9bef5a (1), amendment 25a58e0e (2)-(3), ruling 6a203252): what an
+# archive tutorial's or log's section DOES for its reader -- the key of a live `section_role`
+# vocabulary Entity (intro, setup, step, rationale, how-it-works, background, conclusion) whose
+# description and not-for line are the role judge's criteria, so the vocabulary is graph DATA.
+# Asserted on a Section of a deliverable whose type declares a `section_roles` map (the
+# classification is the Section's, what each role does on the page the type's); an H2 / H3
+# Section carries its own, a deeper one INHERITS its nearest ancestor's at read and only an
+# override is stored. Proposed by the judge, confirmed by the human; one value, UNORDERED, so a
+# changed role is an explicit supersession. Named beside `point_role` (a Point's role).
+SECTION_ROLE = "section_role"
+ENTITY_SECTION_ROLE = "section_role"
+
 # A deliverable's public PATH on the site (ruling 96aff70e: a URL is a fact with history):
 # the active value is where the page lives now, every superseded value is a path it lived at
 # before, and the site build projects a redirect from each superseded path to the active one.
@@ -462,6 +474,9 @@ PREDICATES = {
     # A point's role (ruling 96be1528 (1)): a closed slate, UNORDERED so a re-role is an explicit
     # supersession — an un-superseded flip (content beside aside) is a HARD contradiction.
     POINT_ROLE: Predicate(POINT_ROLE, ENUM, CHANGES, ORDER_NONE),
+    # A Section's role (6a203252): one vocabulary key, UNORDERED, so a change is an explicit
+    # supersession and two active roles are a HARD contradiction.
+    SECTION_ROLE: Predicate(SECTION_ROLE, SLUG, CHANGES, ORDER_NONE),
     # A deliverable's public path (ruling 96aff70e): it legitimately CHANGES (a move), but
     # UNORDERED, so a move is an explicit supersession and two active paths are a HARD
     # contradiction (one page, one current URL; the redirect projection must never fork).

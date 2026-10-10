@@ -15,7 +15,7 @@ def test_typed_predicate_registry():
                                  "design_light_mode", "design_dark_mode", "about_task", "about_stage",
                                  "about_subject", "uses_tool", "uses_model", "facets_judged",
                                  "category_page_min", "home_hubs", "home_recent", "environment_versions",
-                                 "traffic", "link_observation", "inbound_count", "currency"}
+                                 "traffic", "link_observation", "inbound_count", "currency", "section_role"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -360,3 +360,11 @@ def test_a_link_observation_refuses_what_it_cannot_name(bad):
 def test_an_inbound_count_refuses_what_it_cannot_name(bad):
     with pytest.raises(ValueError):
         P.inbound_count_value(bad)
+
+
+def test_a_section_role_is_one_vocabulary_key():
+    """A Section's role (ruling 6a203252): one unordered slug, so a changed role supersedes
+    explicitly; its values name `section_role` Entities, the vocabulary being graph data."""
+    p = P.get_predicate(P.SECTION_ROLE)
+    assert p.value_type == P.SLUG and p.ordering == P.ORDER_NONE and not p.multivalued
+    assert P.ENTITY_SECTION_ROLE == "section_role" and P.SECTION_ROLE != P.POINT_ROLE
