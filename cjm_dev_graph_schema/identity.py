@@ -53,7 +53,8 @@ def series_node_id(
 
 def section_node_id(
     note_id: str,  # The enclosing Note node id
-    anchor: str,   # The heading's slug anchor (disambiguated; e.g. "loading-the-model")
+    anchor: str,   # The heading's slug anchor AT BIRTH (disambiguated; e.g. "loading-the-model")
+    generation: int = 0,  # 0 = the first Section ever born at this address; n = the n-th newcomer born at an address an earlier Section held (a graph-sourced note's birth rule)
 ) -> str:  # Deterministic Section node id
     """Section identity = (enclosing Note, heading anchor slug).
 
@@ -62,7 +63,14 @@ def section_node_id(
     link targets, so an inbound anchored REFERENCES resolves to this id by
     construction (no lookup). Derives off the note id so a section belongs to exactly
     one note; the anchor is stable across edits that don't rename the heading, mirroring
-    `code_text_node_id` (a region keyed on what it leads with)."""
+    `code_text_node_id` (a region keyed on what it leads with).
+
+    A GRAPH-SOURCED note (the archive cutover, design amendment 56b24fd5) keeps a Section's id
+    across a renamed heading -- its source record names the id -- so the address is the one it
+    was BORN at, and `generation` disambiguates a Section born at an address an earlier one
+    held (the code lane's birth rule, 3a4b031f); generation 0 reproduces every id minted before."""
+    if generation:
+        return derive_node_id("section", note_id, anchor, f"gen:{generation}")
     return derive_node_id("section", note_id, anchor)
 
 

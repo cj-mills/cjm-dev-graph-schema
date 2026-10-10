@@ -232,3 +232,11 @@ def test_inbound_link_edge_keys_the_observer_and_the_date():
                                      "linked_urls": sorted(fetched["properties"]["linked_urls"]),
                                      "target_url": "", "anchors": ["Arc A770 part 2"]}
     assert "site_link" not in google["properties"]   # never one of the resolver's edges
+
+
+def test_section_generation_keeps_the_first_id_and_mints_apart():
+    # The graph-sourced note's birth rule (design amendment 56b24fd5): generation 0 is every id
+    # minted before; a newcomer at an address an earlier Section held is the next generation.
+    n = note_node_id("post")
+    assert section_node_id(n, "intro", 0) == section_node_id(n, "intro")
+    assert section_node_id(n, "intro", 1) not in (section_node_id(n, "intro"), section_node_id(n, "intro", 2))
