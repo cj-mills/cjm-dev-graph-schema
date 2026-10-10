@@ -472,7 +472,10 @@ class SectionNode:
     slug), the same slug a cross-post `#anchor` targets, so inbound anchored
     REFERENCES resolve by construction. Membership rides `HAS_SECTION` (note ->
     section); the heading hierarchy rides the layer's `PART_OF` spine relation
-    (section -> enclosing section); document order is the `order` property."""
+    (section -> enclosing section); sibling order rides the layer's `NEXT` (section ->
+    its following sibling under the same parent). The outline relations are the
+    structure a composed note is walked by (design 56c9c332); `level`, `order` and `raw`
+    are DERIVED wire properties -- read off the file for a file-sourced note."""
     note_id: str                                 # Enclosing Note id; identity input
     anchor: str                                  # Heading slug (disambiguated; reserved "_preamble" for the pre-first-heading region); identity input
     level: int                                   # Heading depth (1-6); 0 for the preamble region
@@ -480,6 +483,7 @@ class SectionNode:
     text: str = ""                               # Verbatim section body, heading line EXCLUDED (the navigable/anchor-target unit; Scope A)
     order: int = 0                               # Document-order index within the note (content, not identity)
     parent_anchor: Optional[str] = None          # Enclosing section's anchor (None at top level); the PART_OF target
+    next_anchor: Optional[str] = None            # The following sibling's anchor under the same parent (None for the last); the NEXT target -- order as a relation (design 56c9c332 (3))
     content_hash: str = ""                       # Content hash over the section's lossless span (`raw` when set, else `text`)
     path: str = ""                               # Source file path (provenance locator)
     raw: str = ""                                # Verbatim span INCLUDING the heading line (heading.start -> next heading.start); the lossless round-trip source. Concatenating every section's `raw` in `order` reproduces the body byte-for-byte (M1). "" in Scope-A mode (posts); set in lossless mode (memory)
@@ -517,17 +521,23 @@ class SectionNode:
             "sources": sources,
         }
 
-    def structural_edges(self) -> List[Dict[str, Any]]:  # HAS_SECTION + PART_OF edge wire dicts
-        """The note-membership edge + the heading-hierarchy edge.
+    def structural_edges(self) -> List[Dict[str, Any]]:  # HAS_SECTION + PART_OF + NEXT edge wire dicts
+        """The note-membership edge + the outline relations.
 
         `Note HAS_SECTION self` (membership); `self PART_OF enclosing-section` when
         this heading nests under another (a stable id from (note, parent anchor),
-        dangling-safe if the parent isn't emitted). Document order is a property,
-        not an edge, to avoid a NEXT edge per heading at 272-headings scale."""
+        dangling-safe if the parent isn't emitted); `self NEXT following-sibling` when a
+        sibling follows under the same parent (top-level siblings share the Note).
+        Order is a relation, never a stored position: a composed note is walked by
+        PART_OF + NEXT (design 56c9c332 (3)), the layer's spine grammar as Cells and
+        Messages use it."""
         edges = [make_edge(self.note_id, self.id, DevRelations.HAS_SECTION)]
         if self.parent_anchor:
             edges.append(make_edge(self.id, section_node_id(self.note_id, self.parent_anchor),
                                    SpineRelations.PART_OF))
+        if self.next_anchor:
+            edges.append(make_edge(self.id, section_node_id(self.note_id, self.next_anchor),
+                                   SpineRelations.NEXT))
         return edges
 
 
