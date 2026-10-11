@@ -15,7 +15,8 @@ def test_typed_predicate_registry():
                                  "design_light_mode", "design_dark_mode", "about_task", "about_stage",
                                  "about_subject", "uses_tool", "uses_model", "facets_judged",
                                  "category_page_min", "home_hubs", "home_recent", "environment_versions",
-                                 "traffic", "link_observation", "inbound_count", "currency", "section_role"}
+                                 "traffic", "link_observation", "inbound_count", "currency", "section_role",
+                                 "concepts_judged"}
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
@@ -301,6 +302,9 @@ def test_the_confirmed_facets_are_vocabulary_key_sets():
     # the judge's record is one value, so a re-judge is an explicit supersession
     r = P.get_predicate(P.FACETS_JUDGED)
     assert r.value_type == P.FREETEXT and not r.multivalued and r.ordering == P.ORDER_NONE
+    # the concept judge's record has the same shape (ruling ad37f62a (2))
+    c = P.get_predicate(P.CONCEPTS_JUDGED)
+    assert c.value_type == P.FREETEXT and not c.multivalued and c.ordering == P.ORDER_NONE
 
 
 def test_traffic_is_a_set_slot_of_canonical_measures():

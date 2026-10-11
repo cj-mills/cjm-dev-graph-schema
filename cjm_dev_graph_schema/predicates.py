@@ -282,6 +282,14 @@ RELATED_JUDGED = "related_judged"
 # kind's instructions) differ from the record, or it has no entry; a re-judge is an explicit
 # supersession.
 FACETS_JUDGED = "facets_judged"
+# CONCEPTS_JUDGED -- what a source's concept-relation judgments were made against (ruling ad37f62a
+# (2), the facets_judged shape): canonical JSON {"criteria": {"<concept key>": <criteria hash>},
+# "state": <judged-state hash>}, one entry per judged (source, concept) pair -- the pairs below the
+# store floor included, since they leave no edge. Its subject is the relation's SOURCE: a post
+# (TEACHES / ASSUMES) or the Library unit / work its notes derive from (COVERS). A pair is STALE
+# when the source's state or the concept's criteria differ from the record, or it has no entry; a
+# re-judge is an explicit supersession.
+CONCEPTS_JUDGED = "concepts_judged"
 # CATEGORY_PAGE_MIN -- how many public posts a category needs for its own page (design a62f2499
 # (3)), on the category index's Lens: an entry below it serves a redirect to the category
 # listing filtered to it, never a thin page. The value is a positive integer as text; a change
@@ -321,8 +329,10 @@ TRANSITION_FIELDS = ("in", "optional", "out")
 # deliverable actually ran against stays on VERIFIED_ON's evidence, so staleness is derived.
 ENTITY_ENVIRONMENT = "environment"
 ENVIRONMENT_PART_KINDS = (ENTITY_TOOL, ENTITY_HARDWARE)
-# A CONCEPT (ae698640 (4)): understanding a reader brings, PART_OF one subject Entity (its record's
-# `subject`), with a description and a not-for line for the judge (the facet precedent).
+# A CONCEPT (ae698640 (4), amendment 5c58d521): understanding a reader brings, PART_OF one AREA of
+# knowledge -- one ABOUT-axis entry, a subject, a task or a stage (its record's typed `area`), never
+# a tool or a model (the USES axes: a thing the knowledge concerns, not an area it sits in) -- with a
+# description and a not-for line for the judge (the facet precedent).
 ENTITY_CONCEPT = "concept"
 # ENVIRONMENT_VERSIONS -- an environment's component versions now, as canonical JSON
 # {component: version} (`versions_value`), the shape VERIFIED_ON's evidence carries, so the
@@ -520,6 +530,8 @@ PREDICATES = {
     RELATED_JUDGED: Predicate(RELATED_JUDGED, FREETEXT, CHANGES, ORDER_NONE),
     # A post's facet record (eefda2dd (3)): one value, UNORDERED, as related_judged.
     FACETS_JUDGED: Predicate(FACETS_JUDGED, FREETEXT, CHANGES, ORDER_NONE),
+    # A source's concept record (ad37f62a (2)): one value, UNORDERED, as facets_judged.
+    CONCEPTS_JUDGED: Predicate(CONCEPTS_JUDGED, FREETEXT, CHANGES, ORDER_NONE),
     # The category page threshold (a62f2499 (3)): one value, UNORDERED, as related_judged.
     CATEGORY_PAGE_MIN: Predicate(CATEGORY_PAGE_MIN, FREETEXT, CHANGES, ORDER_NONE),
     # The home page's numbers (e55201e2, 5c3c2662 (5)): one value each, UNORDERED, as category_page_min.
