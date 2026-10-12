@@ -434,6 +434,7 @@ APPROVAL_CLASS = {PUBLISH_STATE: (PUBLISH_REVIEWED, PUBLISH_PUBLISHED)}
 @dataclass(frozen=True)
 class Predicate:
     """A typed predicate's value-space (the contradiction decidability metadata)."""
+
     slug: str          # Predicate slug (the controlled vocabulary key)
     value_type: str    # ENUM | SEMVER | SLUG | FREETEXT
     volatility: str    # STABLE | CHANGES

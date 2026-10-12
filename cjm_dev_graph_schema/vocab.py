@@ -22,6 +22,7 @@ class DevNodeKinds:
     lands first; the remaining kinds are reserved for the fine tier, where a
     note's contents are promoted into Decisions, layered Assertions on Fact-slots,
     Evidence, etc. (coarse -> fine, node-hood earned by reference)."""
+
     NOTE = "Note"            # Coarse tier: one decomposed markdown/memory document
     DECISION = "Decision"    # A decision, with rationale recorded as SUPPORTED_BY edges (not prose)
     FACT_SLOT = "FactSlot"   # A (subject, predicate) slot holding layered, supersede-able assertions
@@ -61,6 +62,7 @@ class DevRelations:
     The overlay relations this domain also uses — `SUPERSEDES`, `DERIVED_FROM`,
     `PRODUCED` — are re-exposed via `OverlayRelations` for convenience but remain
     owned by the layer. `REFERENCES` (the `[[wiki-link]]`) lands first."""
+
     REFERENCES = "REFERENCES"      # Soft cross-reference (the [[wiki-link]]); coarse tier
     ABOUT = "ABOUT"                # Node -> the repo / stage / Thread it concerns (incl. Fact-slot -> its subject)
     ON_SLOT = "ON_SLOT"            # Assertion -> the Fact-slot it claims a value for (fine tier)

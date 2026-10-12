@@ -48,6 +48,7 @@ class EntityNode:
     conceptual slug; `name` is the current display/repo name (itself slot-able);
     `aliases` are prior names + variant link-slugs that resolve to this entity
     (so a fact about a renamed subject keeps one stable home — see `aliases`)."""
+
     kind: str                                    # Entity sub-kind ("repo" | "stage" | "capability" | "person" | "term")
     key: str                                     # Durable conceptual slug (name-INDEPENDENT; the identity input)
     name: str                                    # Current display / repo name (slot-able; not the identity)
@@ -97,6 +98,7 @@ class NoteNode:
     slug. Its `[[wiki-links]]` become `REFERENCES` edges to other notes' ids; its
     body is NOT exploded into fine nodes yet (node-hood earned by reference — the
     fine tier promotes a note's contents into Decisions/Assertions later)."""
+
     slug: str                                    # Stable slug (frontmatter `name`, else corpus-relative path); the identity input
     title: str                                   # Display title (derived from the slug when no explicit title exists)
     path: str                                    # Corpus-relative or absolute file path (provenance locator; may move, identity is the slug)
@@ -162,7 +164,6 @@ class NoteNode:
         return [make_edge(self.id, note_node_id(m.get(ref, ref)), DevRelations.REFERENCES)
                 for ref in self.references]
 
-
     def tagged_edges(self) -> List[Dict[str, Any]]:  # TAGGED edge wire dicts
         """One `TAGGED` edge per category, targeting the shared Topic node's id.
 
@@ -183,6 +184,7 @@ class TopicNode:
     First-class (not a generic term-subject) because projection enumerates facets:
     `categories ≈ topic facets` is one input to audience-parameterized projection
     (the same mechanism as the visibility/experience-level dial)."""
+
     key: str                    # Normalized category key (the identity input; e.g. "object-detection")
     name: str = ""              # Display name (defaults to the key when unset)
 
@@ -214,6 +216,7 @@ class SeriesNode:
     through notes); the member ORDER is authored intent on the IN_SERIES edges
     (`series_member_edge`'s `after`), never derived from dates. The page's public path is a
     `site_path` fact on this node, like a post's."""
+
     key: str                    # Durable series key (the identity input; the page's file stem, e.g. "fastai-book-notes")
     title: str = ""             # Display title (defaults to the key when unset)
     description: str = ""       # The page's one-line description
@@ -476,6 +479,7 @@ class SectionNode:
     its following sibling under the same parent). The outline relations are the
     structure a composed note is walked by (design 56c9c332); `level`, `order` and `raw`
     are DERIVED wire properties -- read off the file for a file-sourced note."""
+
     note_id: str                                 # Enclosing Note id; identity input
     anchor: str                                  # Heading slug (disambiguated; reserved "_preamble" for the pre-first-heading region); identity input
     level: int                                   # Heading depth (1-6); 0 for the preamble region
@@ -549,6 +553,7 @@ class FactSlotNode:
     independent assertions about the same fact converge here instead of splitting
     into parallel free-floating questions. The slot carries no value itself — its
     effective value is the active (non-superseded) Assertion(s) ON_SLOT it."""
+
     subject_id: str    # The subject node's id (an Entity, usually)
     predicate: str     # The curated predicate slug
     subject_label: str = ""  # Optional display label for the subject (convenience; not identity)
@@ -585,6 +590,7 @@ class AssertionNode:
     `asserted_at`/`last_verified` (content, not identity); the evidence is
     `EVIDENCED_BY` edges (union, not identity). The effective value resolves via
     the layer's SUPERSEDES edges (`resolve_active`)."""
+
     slot_id: str                       # The Fact-slot this value is claimed for
     value: str                         # The claimed value (raw)
     actor: str                         # Who claimed it (e.g. "human", "agent:session", "procedure:version-oracle/v1")
@@ -665,6 +671,7 @@ class DecisionNode:
     Minimal in the cut: a node + `SUPPORTED_BY` edges to premise Assertions +
     `DECIDED_IN` to a Session. Banks the reasoning-graph north star cheaply (record
     the premise edges now; the premise-drift checker is deferred)."""
+
     statement: str            # The decision statement (its stable key, canonicalized for identity)
     actor: str = "agent:session"  # Who decided
 
@@ -720,6 +727,7 @@ class CheckNode:
     `drift` classes; `done` itself stays human-authored (checks VERIFY the
     judgment, they don't replace it — oracle-verified checks are the designed-for
     phase-2 via `method`/`last_verified`)."""
+
     item_id: str   # The work item this check gates closure of
     text: str      # The check statement (canonicalized for identity)
     actor: str = "agent:session"  # Who attached it
@@ -752,6 +760,7 @@ class SessionNode:
 
     Minimal in the cut: a bare keyed node so `decide --session` has a real target
     (the session-on-graph north star lands a richer Session source-type later)."""
+
     key: str           # Stable session key (e.g. the session id/timestamp)
     title: str = ""    # Optional display title
 
@@ -782,6 +791,7 @@ class MessageNode:
     from the chain, never stored (DEC 671e9b11 point 8). Anchoring reuses the
     layer spine grammar: PART_OF the Session, NEXT succession along a chain,
     STARTS_WITH from the Session to a chain head."""
+
     source_uuid: str          # Capture-source record uuid (identity input; the CC record uuid, or a composer-minted uuid)
     role: str                 # "user" | "assistant" (the speaking actor's side)
     text: str                 # The message body — raw markdown source, the authoritative content
@@ -846,6 +856,7 @@ class CodeModuleNode:
     decomposes the repo — the cross-graph/federation anchor that lets a different
     project's graph reference this module by its stable id. A module is also a
     first-class subject: a Fact-slot can hang off it (e.g. a module-level known-issue)."""
+
     repo_key: str                                # Repo's durable conceptual slug (the rename-stable Entity key + federation anchor); identity input
     module_path: str                             # Repo-relative module path (e.g. "cjm_dev_graph_schema/nodes.py"); identity input
     path: str                                    # File path (provenance locator; may move, identity is (repo_key, module_path))
@@ -952,6 +963,7 @@ class CodeSymbolNode:
     (handed back by the journal-derived identity map) name the birth address and the id
     stays put — so every journaled edge onto the symbol survives the membership change
     and no rebuild re-keys it. `generation` counts newcomers at a vacated address."""
+
     module_id: str                               # Enclosing CodeModule node id (where it lives NOW; identity input unless birth fields are set)
     qualname: str                                # Qualified name within the module NOW (e.g. "EntityNode.to_graph_node"); identity input unless `birth_qualname` is set
     symbol_kind: str                             # "function" | "class" | "method"
@@ -1071,6 +1083,7 @@ class CellNode:
     carry their prose inline (title/description) and DOCUMENTS the symbols they precede.
     Identity = (notebook module, stable cell key) — the nbformat cell `id` when present,
     else the positional index. Outputs are intentionally NOT stored (derived, not source)."""
+
     module_id: str                               # The enclosing notebook CodeModule id; identity input
     cell_key: str                                # Stable cell key (nbformat `id`, else str(index)); identity input
     cell_type: str                               # "code" | "markdown" | "raw"
@@ -1153,6 +1166,7 @@ class CodeTextNode:
     not symbols — so the module's CONTAINS sequence (symbols + texts, ordered) reassembles
     the source. Identity = (module, region key) where the key anchors on the region's first
     statement, so it survives edits that don't change what the region leads with."""
+
     module_id: str                               # The enclosing CodeModule id; identity input
     region_key: str                              # Stable key anchoring on the region's first statement; identity input
     text: str                                    # The region's VERBATIM source text (the lossless store + authoring slot)
@@ -1268,6 +1282,7 @@ class ReferenceNode:
     archive.org copy taken for a public deliverable. A `research` point's DERIVED_FROM
     lands here exactly as a source point's lands on a segment — one fidelity chain, a
     different Reference class — and the review frontier re-fetches to compare."""
+
     WEB = "web"  # The `graph` key of a captured web page (no sibling db: the "graph" is the web, the foreign id the url)
 
     graph: str                                   # The sibling graph's config key (`sibling_graphs` name), or `WEB`; identity input
@@ -1398,6 +1413,7 @@ class PointNode:
     a KEY, never an id. Per-deliverable presentation of a shared point (a move, the
     cross-reference verdicts) rides the deliverable's PLACED edge (`placed_edge`), never
     the point; a point's ROLE (content / meta / aside) is a `point_role` FACT on it."""
+
     owner_id: str                                # The node that OWNS the point (a PointSet for substance; the deliverable Note for its own section / research points); identity input
     key: str                                     # Opaque stable key (the accepted proposal id); identity input
     kind: str                                    # Point kind (open vocabulary; starter slate RECOMMENDED_POINT_KINDS)
@@ -1540,6 +1556,7 @@ class PointSetNode:
     unit, key "") — so a re-draft, a re-accept and a second deliverable converge on the
     same set. The set carries the unit snapshot for display; the substance rides the
     Points (HAS_POINT set -> point)."""
+
     graph: str                                   # The sibling graph's config key the Source lives in; identity input
     source_id: str                               # The Source node id in that graph (verbatim); identity input
     unit: str = ""                               # The unit key within the Source ("" = the whole Source); identity input
@@ -1611,6 +1628,7 @@ class DeliverableTypeNode:
     kind slate (kind -> gloss). `production_procedure` is the lane's ordered steps. A
     deliverable Note binds to the type by a `deliverable_type` fact (supersedable), so
     the lane's verbs and the review frontier read the rules off the graph, never code."""
+
     key: str                                                 # Durable slug (e.g. "pure-notes"); identity input
     title: str = ""                                          # Display title
     description: str = ""                                    # One line on what the type is for
