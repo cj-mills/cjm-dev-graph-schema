@@ -5,7 +5,6 @@ and the stage-transition match."""
 import json
 
 import pytest
-
 from cjm_context_graph_layer.grammar import SpineRelations
 from cjm_dev_graph_schema import predicates as P
 from cjm_dev_graph_schema.identity import entity_node_id, note_node_id

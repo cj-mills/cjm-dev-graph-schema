@@ -1,9 +1,9 @@
 """Fine-tier nodes: deterministic identity, wire shapes, and alias resolution."""
 
 from cjm_dev_graph_schema.aliases import build_alias_index, resolve_subject_id
-from cjm_dev_graph_schema.identity import (assertion_node_id, factslot_node_id)
-from cjm_dev_graph_schema.nodes import (AssertionNode, DecisionNode, EntityNode,
-                                        FactSlotNode, SessionNode)
+from cjm_dev_graph_schema.identity import assertion_node_id, factslot_node_id
+from cjm_dev_graph_schema.nodes import (AssertionNode, DecisionNode, EntityNode, FactSlotNode,
+                                        SessionNode)
 from cjm_dev_graph_schema.vocab import DevNodeKinds, DevRelations
 
 

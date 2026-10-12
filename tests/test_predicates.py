@@ -1,7 +1,6 @@
 """Predicate value-space: canonicalization, ordering, and conflict decisions."""
 
 import pytest
-
 from cjm_dev_graph_schema import predicates as P
 
 

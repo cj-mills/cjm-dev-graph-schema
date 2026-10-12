@@ -3,14 +3,14 @@ never text / kind / position — where the owner is the source unit's PointSet f
 point and the deliverable for its own section / research points (ruling 96be1528 (P)); the
 deliverable's per-point overlay rides the PLACED edge; the DeliverableType profile upserts by slug."""
 
-from cjm_dev_graph_schema.identity import (deliverable_type_node_id, note_node_id,
-                                           point_node_id, point_set_node_id, reference_node_id)
-from cjm_dev_graph_schema.nodes import (DeliverableTypeNode, POINT_KIND_GLOSSES, PointNode,
-                                        PointSetNode, RECOMMENDED_POINT_KINDS, ReferenceNode,
-                                        placed_edge)
-from cjm_dev_graph_schema.predicates import (DELIVERABLE_TYPE, POINT_ROLE, POINT_ROLES,
-                                             active_contradiction, canonical_value, is_ordered,
-                                             is_typed, values_conflict)
+from cjm_dev_graph_schema.identity import (deliverable_type_node_id, note_node_id, point_node_id,
+                                           point_set_node_id, reference_node_id)
+from cjm_dev_graph_schema.nodes import (DeliverableTypeNode, placed_edge, POINT_KIND_GLOSSES,
+                                        PointNode, PointSetNode, RECOMMENDED_POINT_KINDS,
+                                        ReferenceNode)
+from cjm_dev_graph_schema.predicates import (active_contradiction, canonical_value,
+                                             DELIVERABLE_TYPE, is_ordered, is_typed, POINT_ROLE,
+                                             POINT_ROLES, values_conflict)
 from cjm_dev_graph_schema.vocab import DevNodeKinds, DevRelations
 
 

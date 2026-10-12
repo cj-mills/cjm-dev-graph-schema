@@ -1,12 +1,11 @@
 """Coarse-tier NoteNode: deterministic identity, wire-dict mapping, REFERENCES edges."""
 
 from cjm_context_graph_layer.grammar import SpineRelations
-from cjm_dev_graph_schema.identity import (note_node_id, section_node_id,
-                                           series_node_id, topic_node_id)
-from cjm_dev_graph_schema.nodes import (NoteNode, SectionNode, SeriesNode,
-                                        series_member_edge, site_link_edge, TopicNode,
-                                        inbound_link_edge, judged_related_edge, supports_edge,
-                                        verified_on_edge)
+from cjm_dev_graph_schema.identity import (note_node_id, section_node_id, series_node_id,
+                                           topic_node_id)
+from cjm_dev_graph_schema.nodes import (inbound_link_edge, judged_related_edge, NoteNode,
+                                        SectionNode, series_member_edge, SeriesNode, site_link_edge,
+                                        supports_edge, TopicNode, verified_on_edge)
 from cjm_dev_graph_schema.vocab import DevNodeKinds, DevRelations
 
 

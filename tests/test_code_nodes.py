@@ -5,11 +5,9 @@ The code nodes (`CodeModuleNode`/`CodeSymbolNode`) co-reside with the markdown
 addressable subjects with rename-/cross-graph-stable ids.
 """
 
-from cjm_dev_graph_schema.identity import (cell_node_id, code_module_node_id,
-                                           code_symbol_node_id, code_text_node_id,
-                                           entity_node_id)
-from cjm_dev_graph_schema.nodes import (CellNode, CodeModuleNode, CodeSymbolNode,
-                                        CodeTextNode)
+from cjm_dev_graph_schema.identity import (cell_node_id, code_module_node_id, code_symbol_node_id,
+                                           code_text_node_id, entity_node_id)
+from cjm_dev_graph_schema.nodes import CellNode, CodeModuleNode, CodeSymbolNode, CodeTextNode
 from cjm_dev_graph_schema.vocab import DevNodeKinds, DevRelations
 
 
