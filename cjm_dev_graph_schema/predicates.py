@@ -242,6 +242,29 @@ PROFILE_KEY_SEP = "/"
 DESIGN_LIGHT_MODE = "design_light_mode"
 DESIGN_DARK_MODE = "design_dark_mode"
 
+# THE PERFORMANCE TARGETS (ruling dba17ca8, design detail 2f5033bf (3)): a target CLASS is an
+# Entity of sub-kind `perf_class`, key `class-<n>`; its targets are facts on it, one value each,
+# UNORDERED, so a tightened target is an explicit supersession and the ratchet's history is the
+# fact layer's own. `perf_member` is the SET of seat names the class holds -- a canonical verb or
+# an `app:gesture`, lane-qualified as `<lane>/<seat>` only where one lane's seat differs. An
+# unset fact is a target not yet set; `perf --check` reads them all in one pass.
+ENTITY_PERF_CLASS = "perf_class"
+PERF_MEMBER = "perf_member"
+PERF_B_MAX = "perf_b_max"                # The cost's growth exponent ceiling (cost ~ tier^b)
+PERF_PER_ANSWER = "perf_per_answer"      # "true": the shape is read per answer (b of the cost less b of the answer)
+PERF_X32_S = "perf_x32_s"                # Seconds at x32 (a CLI verb's own verb phase until A; a gesture's wall)
+PERF_X32_RSS_MB = "perf_x32_rss_mb"      # Peak RSS at x32
+PERF_RSS_B_MAX = "perf_rss_b_max"        # The peak RSS growth exponent ceiling
+PERF_X32_WRITE_MB = "perf_x32_write_mb"  # Net bytes written at x32
+PERF_WRITE_B_MAX = "perf_write_b_max"    # The net bytes written growth exponent ceiling
+PERF_GATES = "perf_gates"                # "true": the absolute budgets gate promotion
+PERF_LOAD_P99_RATIO = "perf_load_p99_ratio"          # p99 under the planning load over the single-client p99
+PERF_LOAD_RSS_B_MAX = "perf_load_rss_b_max"          # The clients' summed RSS growth exponent in N
+PERF_LOAD_WRITES_MIN = "perf_load_writes_per_s_min"  # Write throughput floor under the planning load
+PERF_TARGETS = (PERF_B_MAX, PERF_PER_ANSWER, PERF_X32_S, PERF_X32_RSS_MB, PERF_RSS_B_MAX,
+                PERF_X32_WRITE_MB, PERF_WRITE_B_MAX, PERF_GATES, PERF_LOAD_P99_RATIO,
+                PERF_LOAD_RSS_B_MAX, PERF_LOAD_WRITES_MIN)  # The one-value target facts
+
 # The post page's facts (design 39c51c15, the post page of de808eae (2)):
 # REVISED -- a human's statement that a deliverable's content was revised (value = what changed);
 # the page's Updated date is the latest one's time, never a commit time (a link fix is no revision).
@@ -519,6 +542,10 @@ PREDICATES = {
     # A site profile's light / dark override (9a7224a7 (3)): one mode each, UNORDERED.
     DESIGN_LIGHT_MODE: Predicate(DESIGN_LIGHT_MODE, SLUG, CHANGES, ORDER_NONE),
     DESIGN_DARK_MODE: Predicate(DESIGN_DARK_MODE, SLUG, CHANGES, ORDER_NONE),
+    # The performance targets (ruling dba17ca8, 2f5033bf (3)): a class's seats are a SET; each
+    # target one value, UNORDERED, so a tightened target is an explicit supersession.
+    PERF_MEMBER: Predicate(PERF_MEMBER, FREETEXT, STABLE, ORDER_NONE, multivalued=True),
+    **{p: Predicate(p, FREETEXT, CHANGES, ORDER_NONE) for p in PERF_TARGETS},
     LOCATOR: Predicate(LOCATOR, FREETEXT, CHANGES, ORDER_NONE),
     # A source's citation (722a8232 (2)): one value, UNORDERED, so a corrected citation is an
     # explicit supersession and two active citations are a HARD contradiction.
