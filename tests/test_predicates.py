@@ -17,7 +17,7 @@ def test_typed_predicate_registry():
                                  "traffic", "link_observation", "inbound_count", "currency", "section_role",
                                  "concepts_judged", "perf_member", "perf_b_max", "perf_per_answer",
                                  "perf_x32_s", "perf_x32_rss_mb", "perf_rss_b_max", "perf_x32_write_mb",
-                                 "perf_write_b_max", "perf_gates", "perf_load_p99_ratio",
+                                 "perf_write_b_max", "perf_write_amp_max", "perf_gates", "perf_load_p99_ratio",
                                  "perf_load_rss_b_max", "perf_load_writes_per_s_min"}
     assert P.is_multivalued(P.PERF_MEMBER) and not P.is_multivalued(P.PERF_X32_S)  # 2f5033bf (3)
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")

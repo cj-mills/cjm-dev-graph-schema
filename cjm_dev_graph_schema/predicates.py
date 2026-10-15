@@ -257,13 +257,14 @@ PERF_X32_RSS_MB = "perf_x32_rss_mb"      # Peak RSS at x32
 PERF_RSS_B_MAX = "perf_rss_b_max"        # The peak RSS growth exponent ceiling
 PERF_X32_WRITE_MB = "perf_x32_write_mb"  # Net bytes written at x32
 PERF_WRITE_B_MAX = "perf_write_b_max"    # The net bytes written growth exponent ceiling
+PERF_WRITE_AMP_MAX = "perf_write_amp_max"  # Write amplification ceiling on a WRITE seat (ruling 9af0e42e): net bytes written over the logical change -- a write's journal appends, a replay's ops replayed, the full build's db
 PERF_GATES = "perf_gates"                # "true": the absolute budgets gate promotion
 PERF_LOAD_P99_RATIO = "perf_load_p99_ratio"          # p99 under the planning load over the single-client p99
 PERF_LOAD_RSS_B_MAX = "perf_load_rss_b_max"          # The clients' summed RSS growth exponent in N
 PERF_LOAD_WRITES_MIN = "perf_load_writes_per_s_min"  # Write throughput floor under the planning load
 PERF_TARGETS = (PERF_B_MAX, PERF_PER_ANSWER, PERF_X32_S, PERF_X32_RSS_MB, PERF_RSS_B_MAX,
-                PERF_X32_WRITE_MB, PERF_WRITE_B_MAX, PERF_GATES, PERF_LOAD_P99_RATIO,
-                PERF_LOAD_RSS_B_MAX, PERF_LOAD_WRITES_MIN)  # The one-value target facts
+                PERF_X32_WRITE_MB, PERF_WRITE_B_MAX, PERF_WRITE_AMP_MAX, PERF_GATES,
+                PERF_LOAD_P99_RATIO, PERF_LOAD_RSS_B_MAX, PERF_LOAD_WRITES_MIN)  # The one-value target facts
 
 # The post page's facts (design 39c51c15, the post page of de808eae (2)):
 # REVISED -- a human's statement that a deliverable's content was revised (value = what changed);
