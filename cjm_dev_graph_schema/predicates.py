@@ -261,10 +261,34 @@ PERF_WRITE_AMP_MAX = "perf_write_amp_max"  # Write amplification ceiling on a WR
 PERF_GATES = "perf_gates"                # "true": the absolute budgets gate promotion
 PERF_LOAD_P99_RATIO = "perf_load_p99_ratio"          # p99 under the planning load over the single-client p99
 PERF_LOAD_RSS_B_MAX = "perf_load_rss_b_max"          # The clients' summed RSS growth exponent in N
-PERF_LOAD_WRITES_MIN = "perf_load_writes_per_s_min"  # Write throughput floor under the planning load
+PERF_LOAD_WRITES_MIN = "perf_load_writes_per_s_min"  # Write throughput floor under a load (on the load, it wins over its class's)
+PERF_LOAD_VISIBILITY_P99_S = "perf_load_visibility_p99_s"  # 7v: p99 seconds from a write's journaled op to a held reader seeing it
 PERF_TARGETS = (PERF_B_MAX, PERF_PER_ANSWER, PERF_X32_S, PERF_X32_RSS_MB, PERF_RSS_B_MAX,
                 PERF_X32_WRITE_MB, PERF_WRITE_B_MAX, PERF_WRITE_AMP_MAX, PERF_GATES,
-                PERF_LOAD_P99_RATIO, PERF_LOAD_RSS_B_MAX, PERF_LOAD_WRITES_MIN)  # The one-value target facts
+                PERF_LOAD_P99_RATIO, PERF_LOAD_RSS_B_MAX, PERF_LOAD_WRITES_MIN,
+                PERF_LOAD_VISIBILITY_P99_S)  # The one-value target facts
+
+# THE PLANNING LOADS (ruling 110c662f (5), design detail 2c4bad75 (1)): a LOAD is an Entity of
+# sub-kind `perf_load`, key `load-<name>`, its intent as facts -- one value each, UNORDERED, so a
+# changed count is an explicit supersession. `perf_load_roles` is the role counts of one group
+# ("main=1 ingest=1 sub=4"), `perf_load_groups` how many groups (sittings) run at once,
+# `perf_load_interactive` the roles read as interactive in this load (the rest are batch),
+# `perf_load_sharing` shared | partitioned, `perf_load_pace` 0 (back to back) to 1 (the recorded
+# gaps); `perf_load_with` is the SET of loads it runs beside (composition). Which recorded
+# workloads feed a role is the bench config's (mechanics); a concurrency class's `perf_member`
+# names loads.
+ENTITY_PERF_LOAD = "perf_load"
+PERF_LOAD_ROLES = "perf_load_roles"
+PERF_LOAD_GROUPS = "perf_load_groups"
+PERF_LOAD_INTERACTIVE = "perf_load_interactive"
+PERF_LOAD_LANE = "perf_load_lane"
+PERF_LOAD_TIER = "perf_load_tier"
+PERF_LOAD_SHARING = "perf_load_sharing"
+PERF_LOAD_PACE = "perf_load_pace"
+PERF_LOAD_WITH = "perf_load_with"
+PERF_LOAD_FACTS = (PERF_LOAD_ROLES, PERF_LOAD_GROUPS, PERF_LOAD_INTERACTIVE, PERF_LOAD_LANE,
+                   PERF_LOAD_TIER, PERF_LOAD_SHARING, PERF_LOAD_PACE)  # The one-value load facts
+LOAD_SHARINGS = ("shared", "partitioned")
 
 # The post page's facts (design 39c51c15, the post page of de808eae (2)):
 # REVISED -- a human's statement that a deliverable's content was revised (value = what changed);
@@ -547,6 +571,9 @@ PREDICATES = {
     # target one value, UNORDERED, so a tightened target is an explicit supersession.
     PERF_MEMBER: Predicate(PERF_MEMBER, FREETEXT, STABLE, ORDER_NONE, multivalued=True),
     **{p: Predicate(p, FREETEXT, CHANGES, ORDER_NONE) for p in PERF_TARGETS},
+    # The planning loads (110c662f (5), 2c4bad75 (1)): one value each, the loads beside a SET.
+    **{p: Predicate(p, FREETEXT, CHANGES, ORDER_NONE) for p in PERF_LOAD_FACTS},
+    PERF_LOAD_WITH: Predicate(PERF_LOAD_WITH, FREETEXT, STABLE, ORDER_NONE, multivalued=True),
     LOCATOR: Predicate(LOCATOR, FREETEXT, CHANGES, ORDER_NONE),
     # A source's citation (722a8232 (2)): one value, UNORDERED, so a corrected citation is an
     # explicit supersession and two active citations are a HARD contradiction.

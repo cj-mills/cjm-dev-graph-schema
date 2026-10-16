@@ -18,8 +18,12 @@ def test_typed_predicate_registry():
                                  "concepts_judged", "perf_member", "perf_b_max", "perf_per_answer",
                                  "perf_x32_s", "perf_x32_rss_mb", "perf_rss_b_max", "perf_x32_write_mb",
                                  "perf_write_b_max", "perf_write_amp_max", "perf_gates", "perf_load_p99_ratio",
-                                 "perf_load_rss_b_max", "perf_load_writes_per_s_min"}
+                                 "perf_load_rss_b_max", "perf_load_writes_per_s_min",
+                                 "perf_load_visibility_p99_s", "perf_load_roles", "perf_load_groups",
+                                 "perf_load_interactive", "perf_load_lane", "perf_load_tier",
+                                 "perf_load_sharing", "perf_load_pace", "perf_load_with"}
     assert P.is_multivalued(P.PERF_MEMBER) and not P.is_multivalued(P.PERF_X32_S)  # 2f5033bf (3)
+    assert P.is_multivalued(P.PERF_LOAD_WITH) and not P.is_multivalued(P.PERF_LOAD_ROLES)  # 2c4bad75 (1)
     assert P.is_typed("rename-disposition") and P.is_typed("version") and P.is_typed("aka")
     assert P.is_typed("task_state") and P.is_ordered("task_state")  # ordered enum lifecycle
     assert not P.is_typed("status")  # untyped freetext until a real contradiction types it
